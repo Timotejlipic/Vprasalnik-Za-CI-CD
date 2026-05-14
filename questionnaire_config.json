@@ -1,0 +1,280 @@
+{
+  "version": "1.0",
+  "title": "CI/CD Pipeline Maturity Assessment",
+  "description": "Vprašalnik za popis in oceno zrelosti CI/CD cevovodov. Na podlagi izpolnjenih odgovorov sistem določi nivo zrelosti cevovoda in prikaže, kaj je potrebno za dosego višjega nivoja.",
+  "sections": [
+    {
+      "id": "build",
+      "label": "Build",	
+      "type": "checkbox",
+      "description": "Avtomatiziran proces gradnje (kompilacija, pakiranje) aplikacije iz izvorne kode.",
+      "items": [
+        {
+          "id": "build_present",
+          "label": "Build korak je prisoten v cevovodu",
+          "type": "checkbox",
+          "description": "Cevovod vključuje korak avtomatiziranega build-a.",
+          "items": [
+            {
+              "id": "build_manual_trigger",
+              "label": "Ročni prožilec (manual trigger)",
+              "type": "checkbox",
+              "description": "Build je možno sprožiti ročno (npr. s klikom na gumb)."
+            },
+            {
+              "id": "build_other_triggers",
+              "label": "Avtomatski prožilci",
+              "type": "multiselect",
+              "description": "Dogodki, ki samodejno sprožijo build korak.",
+              "options": [
+                { "value": "PUSH", "label": "Push" },
+                { "value": "PULLRQ", "label": "Pull Request" },
+                { "value": "SCHEDULED", "label": "Scheduled (urnik)" },
+                { "value": "API", "label": "API klic" },
+                { "value": "PIPELINE", "label": "Zaključek drugega cevovoda" },
+                { "value": "OTHER", "label": "Drugo" }
+              ]
+            },
+            {
+              "id": "build_dedicated_server",
+              "label": "Uporaba namenskega build strežnika (izven GitHub runner)",
+              "type": "checkbox",
+              "description": "Build se izvaja na lastnem ali namenskem strežniku, ne na privzetem runnerju ponudnika (npr. GitHub Actions runner)."
+            },
+            {
+              "id": "build_explicit_logging",
+              "label": "Eksplicitno beleženje build korakov (logging)",
+              "type": "checkbox",
+              "description": "Build proces zapisuje podrobne loge, ki omogočajo diagnostiko napak."
+            },
+            {
+              "id": "build_artifacts_stored",
+              "label": "Build artefakti se hranijo",
+              "type": "checkbox",
+              "description": "Rezultati build-a (JAR, Docker image, ZIP …) se shranijo in so dostopni po zaključku cevovoda.",
+              "items": [
+                {
+                  "id": "build_artifact_versioning",
+                  "label": "Avtomatsko verzioniranje artefaktov",
+                  "type": "checkbox",
+                  "description": "Vsak artefakt dobi samodejno določeno verzijsko oznako (npr. semantična verzija, git tag, build number)."
+                }
+              ]
+            },
+            {
+              "id": "build_notification",
+              "label": "Obvestilo ob uspehu / neuspehu build-a",
+              "type": "checkbox",
+              "description": "Ekipa prejme obvestilo (e-pošta, Slack, Teams …) ob zaključku build-a."
+            },
+            {
+              "id": "build_other",
+              "label": "Drugo",
+              "type": "text",
+              "description": "Opišite morebitne dodatne lastnosti build koraka, ki jih zgornji seznam ne pokriva."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unit_testing",
+      "label": "Unit Testing",
+      "type": "checkbox",
+      "description": "Avtomatizirani testi posameznih enot kode (funkcij, razredov, modulov) brez zunanjih odvisnosti.",
+      "items": [
+        {
+          "id": "unit_test_present",
+          "label": "Unit testing korak je prisoten v cevovodu",
+          "type": "checkbox",
+          "description": "Cevovod vključuje avtomatizirano izvajanje unit testov.",
+          "items": [
+            {
+              "id": "unit_test_manual_trigger",
+              "label": "Ročni prožilec",
+              "type": "checkbox",
+              "description": "Unit teste je možno sprožiti ročno."
+            },
+            {
+              "id": "unit_test_triggers",
+              "label": "Avtomatski prožilci",
+              "type": "multiselect",
+              "description": "Dogodki, ki samodejno sprožijo unit teste.",
+              "options": [
+                { "value": "PUSH", "label": "Push" },
+                { "value": "PULLRQ", "label": "Pull Request" },
+                { "value": "SCHEDULED", "label": "Scheduled (urnik)" },
+                { "value": "API", "label": "API klic" },
+                { "value": "PIPELINE", "label": "Zaključek drugega cevovoda" },
+                { "value": "OTHER", "label": "Drugo" }
+              ]
+            },
+            {
+              "id": "unit_test_dedicated_server",
+              "label": "Namenski testni strežnik (izven GitHub runner)",
+              "type": "checkbox",
+              "description": "Testi se izvajajo na namenskem strežniku."
+            },
+            {
+              "id": "unit_test_requires_build",
+              "label": "Zahteva predhodnji build",
+              "type": "checkbox",
+              "description": "Unit testi se izvedejo samo po uspešnem build koraku."
+            },
+            {
+              "id": "unit_test_logging",
+              "label": "Eksplicitno beleženje (logging)",
+              "type": "checkbox",
+              "description": "Podrobni logi izvajanja testov so dostopni za diagnostiko."
+            },
+            {
+              "id": "unit_test_report",
+              "label": "Generiranje testnega poročila",
+              "type": "checkbox",
+              "description": "Cevovod samodejno ustvari poročilo z rezultati testov."
+            },
+            {
+              "id": "unit_test_artifacts_stored",
+              "label": "Testni artefakti se hranijo (logi, poročila)",
+              "type": "checkbox",
+              "description": "Rezultati in logi testov se shranjujejo za kasnejšo analizo."
+            },
+            {
+              "id": "unit_test_notification",
+              "label": "Obvestilo ob uspehu / neuspehu",
+              "type": "checkbox",
+              "description": "Ekipa prejme obvestilo ob rezultatu unit testov."
+            },
+            {
+              "id": "unit_test_pipeline_fail",
+              "label": "Cevovod se ustavi ob neuspehu testov",
+              "type": "checkbox",
+              "description": "Če kateri koli unit test ne uspe, se celoten cevovod zaustavi in prepreči nadaljnjo izvedbo."
+            },
+            {
+              "id": "unit_test_auto_issue",
+              "label": "Avtomatsko odpiranje napake (issue) ob neuspehu",
+              "type": "checkbox",
+              "description": "Ob neuspehu testov se samodejno ustvari napaka v sistemu za sledenje nalogam."
+            },
+            {
+              "id": "unit_test_coverage_tracking",
+              "label": "Merjenje pokritosti kode s testi (code coverage)",
+              "type": "checkbox",
+              "description": "Cevovod meri in poroča odstotek kode, ki je pokrit z unit testi.",
+              "items": [
+                {
+                  "id": "unit_test_coverage_percent",
+                  "label": "Pokritost kode s testi (%)",
+                  "type": "numeric",
+                  "description": "Trenutni odstotek pokritosti kode z unit testi."
+                },
+                {
+                  "id": "unit_test_coverage_gate",
+                  "label": "Cevovod se ustavi, če pokritost pade pod prag",
+                  "type": "checkbox",
+                  "description": "Definirano je minimalno zahtevano pokritost; cevovod ne uspe, če je pokritost nižja."
+                }
+              ]
+            },
+            {
+              "id": "unit_testing_other",
+              "label": "Drugo",
+              "type": "text",
+              "description": "Opišite morebitne dodatne lastnosti unit testing koraka, ki jih zgornji seznam ne pokriva."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deploy",
+      "label": "Deploy",
+      "type": "checkbox",
+      "description": "Avtomatizirana namestitev aplikacije v ciljno okolje.",
+      "items": [
+        {
+          "id": "deploy_present",
+          "label": "Deploy korak je prisoten v cevovodu",
+          "type": "checkbox",
+          "description": "Cevovod vključuje avtomatiziran deploy.",
+          "items": [
+            {
+              "id": "deploy_manual_trigger",
+              "label": "Ročni prožilec",
+              "type": "checkbox",
+              "description": "Deploy je možno sprožiti ročno."
+            },
+            {
+              "id": "deploy_triggers",
+              "label": "Avtomatski prožilci",
+              "type": "multiselect",
+              "description": "Dogodki, ki samodejno sprožijo deploy.",
+              "options": [
+                { "value": "PUSH", "label": "Push" },
+                { "value": "PULLRQ", "label": "Pull Request" },
+                { "value": "SCHEDULED", "label": "Scheduled (urnik)" },
+                { "value": "API", "label": "API klic" },
+                { "value": "PIPELINE", "label": "Zaključek drugega cevovoda" },
+                { "value": "OTHER", "label": "Drugo" }
+              ]
+            },
+            {
+              "id": "deploy_depends_on",
+              "label": "Odvisnosti (depends on)",
+              "type": "multiselect",
+              "description": "Kateri koraki morajo biti zaključeni pred deploy-em.",
+              "options": [
+                { "value": "BUILD", "label": "Build" },
+                { "value": "UNITTEST", "label": "Unit Testing" },
+                { "value": "FUNCTEST", "label": "Functional Testing" },
+                { "value": "SYSTEST", "label": "System Testing" },
+                { "value": "ANALYSIS", "label": "Analysis" },
+                { "value": "RELEASE", "label": "Release" },
+                { "value": "DEPLOY", "label": "Deploy" },
+                { "value": "OTHER", "label": "Drugo" }
+              ]
+            },
+            {
+              "id": "deploy_logging",
+              "label": "Eksplicitno beleženje (logging)",
+              "type": "checkbox",
+              "description": "Podrobni logi deploy procesa so dostopni."
+            },
+            {
+              "id": "deploy_environments",
+              "label": "Okolja, v katera se izvaja deploy",
+              "type": "multiselect",
+              "description": "Označite vsa okolja, v katera cevovod samodejno namesti aplikacijo.",
+              "options": [
+                { "value": "test", "label": "Test" },
+                { "value": "staging", "label": "Staging" },
+                { "value": "production", "label": "Production / Produkcija" }
+              ]
+            },
+            {
+              "id": "deploy_other",
+              "label": "Drugo",
+              "type": "text",
+              "description": "Opišite morebitne dodatne lastnosti deploy koraka, ki jih zgornji seznam ne pokriva."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "label": "Drugo",
+      "type": "checkbox",
+      "description": "Elementi cevovodov, ki jih ni mogoče uvrstiti v nobeno od zgornjih kategorij.",
+      "items": [
+        {
+          "id": "other_description",
+          "label": "Opis dodatnih elementov",
+          "type": "text",
+          "description": "Zapišite elemente cevovoda, ki ste jih našli med pregledom, a jih niste mogli uvrstiti v nobeno od zgornjih kategorij."
+        }
+      ]
+    }
+  ]
+}

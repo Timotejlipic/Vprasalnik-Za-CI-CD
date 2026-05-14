@@ -1,0 +1,28 @@
+{
+  "name": "cicdcevovodi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD/issues"
+  },
+  "homepage": "https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD#readme",
+  "devDependencies": {
+    "vite": "^8.0.12"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  }
+}
