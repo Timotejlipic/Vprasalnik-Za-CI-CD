@@ -1,18 +1,18 @@
 import React from 'react';
 
-export default function Sidebar({ currentView, switchView }) {
+export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = true }) {
   const views = [
     { id: 'dashboard', label: 'Nadzorna plošča' },
-    { id: 'assessment', label: 'Nova ocena 1' },
-    { id: 'assessment2', label: 'Nova ocena 2' },
-    { id: 'assessment3', label: 'Nova ocena 3' },
-    { id: 'assessment4', label: 'Nova ocena 4' },
-    { id: 'builder', label: 'Form Builder' },
-    { id: 'rules', label: 'Pravila zrelosti' },
+    { id: 'assessment', label: 'Nova ocena' }
   ];
 
+  if (isLoggedIn) {
+    views.push({ id: 'builder', label: 'Form Builder' });
+    views.push({ id: 'rules', label: 'Pravila zrelosti' });
+  }
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${!isOpen ? 'closed' : ''}`}>
       <div className="brand">
         <span>Maturity<span className="accent">Vault</span></span>
       </div>
