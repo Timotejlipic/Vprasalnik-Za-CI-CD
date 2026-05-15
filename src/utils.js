@@ -2,9 +2,9 @@ export function getMaxScore(categories) {
   let max = 0;
   categories.forEach(cat => {
     cat.items.forEach(item => {
-      // Skupno število točk se določi glede na tipe vprašanj (DA/NE prinese 10, besedilo 5 točk)- treba zamenjat da je vse enakovredno
+      // Vsa vprašanja so enakovredna (10 točk)
       if (item.type === 'yes_no_na') max += 10;
-      if (item.type === 'text') max += 5;
+      if (item.type === 'text') max += 10;
     });
   });
   return max === 0 ? 100 : max;
@@ -12,32 +12,34 @@ export function getMaxScore(categories) {
 
 export function evaluateAssessment(answers, categories, rules) {
   let score = 0;
+  let effectiveMax = 0;
   let missing = [];
 
   categories.forEach(cat => {
-    let catMax = 0;
     cat.items.forEach(item => {
       const ans = answers[item.id];
       if (item.type === 'yes_no_na') {
-        catMax += 10;
-        if (ans === 'DA') {
-          score += 10;
-        } else if (ans === 'NE' || !ans) {
-          // Beležimo manjkajoče zahteve za kasnejši prikaz priporočil
-          missing.push(`Manjka v ${cat.title}: ${item.label}`);
-        } else if (ans === 'NA') {
-          // Odgovor "Ni relevantno" (NA) zmanjša maksimalno možno število točk v kategoriji
-          catMax -= 10;
+        if (ans === 'NA') {
+          // NA ne prinese točk in ne šteje v maksimalno možno število točk
+        } else {
+          effectiveMax += 10;
+          if (ans === 'DA') {
+            score += 10;
+          } else {
+            // !ans or 'NE'
+            missing.push(`Manjka v ${cat.title}: ${item.label}`);
+          }
         }
       } else if (item.type === 'text') {
+        effectiveMax += 10;
         if (ans && ans.trim() !== '') {
-          score += 5;
+          score += 10;
         }
       }
     });
   });
 
-  const maxPossible = getMaxScore(categories);
+  const maxPossible = effectiveMax === 0 ? 100 : effectiveMax;
   // Izračunamo odstotek doseženih točk, navzgor omejeno na največ 100%
   const normalizedScore = Math.min(100, Math.round((score / maxPossible) * 100));
 
