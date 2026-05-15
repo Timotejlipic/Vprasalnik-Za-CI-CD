@@ -80,8 +80,8 @@ export default function Assessment1({ isLoggedIn, pipelines, setPipelines, curre
         <div className="form-container">
           <div className="card" style={{ marginBottom: '20px' }}>
             <div className="form-group" style={{ marginBottom: '15px' }}>
-              <label className="form-label">Ime cevovoda / projekta</label>
-              <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} placeholder="npr. Zaledna mikrostoritev" />
+              <label className="form-label">Ime cevovoda</label>
+              <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
               <div>
@@ -101,20 +101,42 @@ export default function Assessment1({ isLoggedIn, pipelines, setPipelines, curre
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
             {categories.map(cat => (
-              <div key={cat.id} className="card" style={{ marginBottom: 0, padding: 0, overflow: 'hidden' }}>
-                <div style={{ background: 'var(--panel-bg)', padding: '15px 20px', borderBottom: '1px solid var(--panel-border)', fontWeight: 600, fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <details key={cat.id} className="card" style={{ marginBottom: 0, padding: 0, overflow: 'hidden' }} open>
+                <summary style={{ 
+                  background: 'linear-gradient(90deg, rgba(88, 166, 255, 0.1) 0%, var(--panel-bg) 100%)', 
+                  padding: '16px 20px', 
+                  borderBottom: '1px solid var(--panel-border)', 
+                  borderLeft: '4px solid var(--accent-color)',
+                  fontWeight: 700, 
+                  fontSize: '1.15rem', 
+                  color: 'var(--text-primary)',
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  cursor: 'pointer', 
+                  listStyle: 'none' 
+                }}>
                   {cat.title}
-                  <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>DA | NE | /</span>
-                </div>
+                  <span className="collapse-icon" style={{ transition: 'transform 0.2s', fontSize: '1.2rem', display: 'inline-block' }}>▸</span>
+                </summary>
                 <div style={{ padding: '10px 20px' }}>
                   {cat.items.map(item => (
                     <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ fontSize: '0.9rem', flex: 1 }}>{item.label}</div>
+                      <div style={{ fontSize: '0.9rem', flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {item.label}
+                        {item.description && (
+                          <span title={item.description} style={{ cursor: 'help', color: 'var(--accent-color)', fontSize: '0.75rem', background: 'rgba(88, 166, 255, 0.15)', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>?</span>
+                        )}
+                      </div>
                       {item.type === 'yes_no_na' ? (
                         <div style={{ display: 'flex', gap: '15px' }}>
-                          {['DA', 'NE', 'NA'].map(opt => (
-                            <label key={opt} className="radio-label">
-                              <input type="radio" name={`${item.id}_1`} value={opt} checked={currentAssessment[item.id] === opt} onChange={() => handleChange(item.id, opt)} />
+                          {['DA', 'NA'].map(opt => (
+                            <label key={opt} className="checkbox-label">
+                              <input 
+                                type="checkbox" 
+                                checked={currentAssessment[item.id] === opt} 
+                                onChange={() => handleChange(item.id, currentAssessment[item.id] === opt ? '' : opt)} 
+                              />
                               {opt === 'NA' ? '/' : opt}
                             </label>
                           ))}
@@ -127,7 +149,7 @@ export default function Assessment1({ isLoggedIn, pipelines, setPipelines, curre
                     </div>
                   ))}
                 </div>
-              </div>
+              </details>
             ))}
           </div>
 
