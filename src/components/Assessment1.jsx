@@ -83,7 +83,7 @@ export default function Assessment1({ isLoggedIn, pipelines, setPipelines, curre
               <label className="form-label">Ime cevovoda</label>
               <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div className="responsive-grid-2" style={{ gap: '15px', marginBottom: '15px' }}>
               <div>
                 <label className="form-label">ID repozitorija</label>
                 <input type="text" className="form-control" value={repoId} onChange={e => setRepoId(e.target.value)} />
@@ -99,7 +99,7 @@ export default function Assessment1({ isLoggedIn, pipelines, setPipelines, curre
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+          <div className="responsive-grid-2" style={{ alignItems: 'start' }}>
             {categories.map(cat => (
               <details key={cat.id} className="card" style={{ marginBottom: 0, padding: 0, overflow: 'hidden' }} open>
                 <summary style={{ 
