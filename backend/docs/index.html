@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cicdq C++ Backend — API Documentation</title>
+  <style>
+    /* base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w:   260px;
+      --topbar-h:    56px;
+      --accent:      #4f8ef7;
+      --accent-dim:  #3a6fd4;
+      --bg:          #f8f9fb;
+      --surface:     #ffffff;
+      --sidebar-bg:  #ffffff;
+      --sidebar-txt: #4b5563;
+      --sidebar-hov: #f3f4f6;
+      --sidebar-act: #3a6fd4;
+      --border:      #e3e7ef;
+      --txt:         #1a1d27;
+      --txt-muted:   #6b7280;
+      --code-bg:     #1a1d27;
+      --code-txt:    #e2e8f0;
+      --radius:      8px;
+      --shadow:      0 1px 4px rgba(0,0,0,.08);
+
+      --get:    #16a34a;
+      --post:   #2563eb;
+      --put:    #d97706;
+      --delete: #dc2626;
+      --patch:  #7c3aed;
+    }
+
+    html { scroll-behavior: smooth; font-size: 15px; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      line-height: 1.65;
+    }
+
+    /* header */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: var(--sidebar-bg);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header .logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--txt);
+      letter-spacing: -.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header .logo .badge {
+      font-size: .65rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    header .meta {
+      margin-left: auto;
+      font-size: .8rem;
+      color: var(--txt-muted);
+    }
+
+    /* sidebar */
+    nav {
+      position: fixed;
+      top: var(--topbar-h);
+      left: 0;
+      width: var(--sidebar-w);
+      height: calc(100vh - var(--topbar-h));
+      background: var(--sidebar-bg);
+      overflow-y: auto;
+      padding: 20px 0 40px;
+      border-right: 1px solid var(--border);
+    }
+
+    nav::-webkit-scrollbar { width: 4px; }
+    nav::-webkit-scrollbar-track { background: transparent; }
+    nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .nav-group { margin-bottom: 6px; }
+
+    .nav-group-label {
+      font-size: .68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--txt-muted);
+      padding: 14px 20px 6px;
+    }
+
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 20px;
+      font-size: .82rem;
+      color: var(--sidebar-txt);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+
+    nav a:hover {
+      background: var(--sidebar-hov);
+      color: var(--txt);
+    }
+
+    nav a.active {
+      background: var(--sidebar-hov);
+      color: var(--sidebar-act);
+      border-left-color: var(--sidebar-act);
+    }
+
+    nav a .m {
+      font-size: .6rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+
+    .m-get    { background: rgba(22,163,74,.2);  color: #4ade80; }
+    .m-post   { background: rgba(37,99,235,.2);  color: #60a5fa; }
+    .m-put    { background: rgba(217,119,6,.2);  color: #fbbf24; }
+    .m-delete { background: rgba(220,38,38,.2);  color: #f87171; }
+
+    /* main */
+    main {
+      margin-left: var(--sidebar-w);
+      padding-top: var(--topbar-h);
+      min-height: 100vh;
+    }
+
+    .content {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 40px 120px;
+    }
+
+    /* headings */
+    .section { margin-bottom: 72px; }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -.3px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+      color: var(--txt);
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 28px 0 10px;
+      color: var(--txt);
+    }
+
+    p { margin-bottom: 14px; color: #374151; }
+    p:last-child { margin-bottom: 0; }
+
+    .lead {
+      font-size: 1.05rem;
+      color: var(--txt-muted);
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+
+    /* cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* callouts */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-size: .875rem;
+    }
+    .callout-warn  { background: #fffbeb; border: 1px solid #fcd34d; color: #78350f; }
+    .callout-info  { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+    .callout-tip   { background: #f0fdf4; border: 1px solid #86efac; color: #14532d; }
+    .callout-icon  { font-size: 1rem; flex-shrink: 0; line-height: 1.65; }
+
+    /* tables */
+    .table-wrap { overflow-x: auto; margin-bottom: 20px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      text-align: left;
+      padding: 9px 14px;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9fb; }
+
+    /* code blocks */
+    code {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+      font-size: .82em;
+      background: #eef2f8;
+      color: #be185d;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    pre {
+      background: var(--code-bg);
+      color: var(--code-txt);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      overflow-x: auto;
+      margin-bottom: 16px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+      font-size: .82rem;
+      line-height: 1.7;
+      border: 1px solid #2a2d3a;
+    }
+
+    pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+    .pre-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    /* syntax highlighting */
+    .kw  { color: #c792ea; }   /* keyword / special */
+    .str { color: #c3e88d; }   /* string */
+    .num { color: #f78c6c; }   /* number */
+    .key { color: #82aaff; }   /* json key */
+    .cmt { color: #546e7a; font-style: italic; }
+
+    /* endpoint */
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 4px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .endpoint-header:hover { background: #f8faff; }
+
+    .method {
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .5px;
+      padding: 3px 9px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .method-GET    { background: rgba(22,163,74,.12);  color: var(--get);    border: 1px solid rgba(22,163,74,.25);  }
+    .method-POST   { background: rgba(37,99,235,.12);  color: var(--post);   border: 1px solid rgba(37,99,235,.25);  }
+    .method-PUT    { background: rgba(217,119,6,.12);  color: var(--put);    border: 1px solid rgba(217,119,6,.25);  }
+    .method-DELETE { background: rgba(220,38,38,.12);  color: var(--delete); border: 1px solid rgba(220,38,38,.25);  }
+
+    .endpoint-path {
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--txt);
+      flex: 1;
+    }
+
+    .endpoint-path .param { color: var(--accent); }
+
+    .endpoint-desc {
+      font-size: .8rem;
+      color: var(--txt-muted);
+      margin-left: auto;
+    }
+
+    .auth-tag {
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    .auth-none  { background: #f1f5f9; color: #64748b; }
+    .auth-user  { background: #eff6ff; color: #1d4ed8; }
+    .auth-owner { background: #fdf4ff; color: #7e22ce; }
+    .auth-admin { background: #fff1f2; color: #be123c; }
+
+    .endpoint-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+    }
+
+    /* architecture */
+    .arch {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .arch-box .title { font-weight: 700; font-size: .85rem; margin-bottom: 4px; }
+    .arch-box .sub { font-size: .75rem; color: var(--txt-muted); }
+
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--txt-muted);
+      font-size: 1.2rem;
+    }
+
+    /* file tree */
+    .tree {
+      background: var(--code-bg);
+      border: 1px solid #2a2d3a;
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: .8rem;
+      line-height: 1.9;
+      color: var(--code-txt);
+      margin-bottom: 20px;
+    }
+
+    .tree .dir  { color: #82aaff; font-weight: 600; }
+    .tree .file { color: #c5cad8; }
+    .tree .ann  { color: #546e7a; font-style: italic; }
+
+    /* two-col */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+      .arch { grid-template-columns: 1fr; }
+    }
+
+    /* status pills */
+    .status {
+      display: inline-block;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .s-2xx { background: rgba(22,163,74,.12); color: var(--get); }
+    .s-4xx { background: rgba(220,38,38,.12); color: var(--delete); }
+    .s-5xx { background: rgba(100,116,139,.12); color: #64748b; }
+
+    /* divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+    /* scrollspy */
+    .section-anchor { display: block; position: relative; top: -80px; visibility: hidden; }
+  </style>
+</head>
+<body>
+
+<!-- header -->
+<header>
+  <div class="logo">
+    cicdq
+    <span class="badge">C++ Backend</span>
+  </div>
+  <div class="meta">C++17 &nbsp;·&nbsp; REST API &nbsp;·&nbsp; Port 3002</div>
+</header>
+
+<!-- sidebar -->
+<nav id="sidebar">
+  <div class="nav-group">
+    <div class="nav-group-label">Introduction</div>
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#structure">Project Structure</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Setup</div>
+    <a href="#build">Building</a>
+    <a href="#configuration">Configuration</a>
+    <a href="#running">Running</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Authentication</div>
+    <a href="#auth-flow">Auth Flow</a>
+    <a href="#auth-login"><span class="m m-post">POST</span> /api/auth/login</a>
+    <a href="#auth-register"><span class="m m-post">POST</span> /api/auth/register</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Pipelines</div>
+    <a href="#pipelines-list"><span class="m m-get">GET</span> /api/pipelines</a>
+    <a href="#pipelines-create"><span class="m m-post">POST</span> /api/pipelines</a>
+    <a href="#pipelines-get"><span class="m m-get">GET</span> /api/pipelines/:id</a>
+    <a href="#pipelines-update"><span class="m m-put">PUT</span> /api/pipelines/:id</a>
+    <a href="#pipelines-delete"><span class="m m-delete">DEL</span> /api/pipelines/:id</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Categories</div>
+    <a href="#categories-list"><span class="m m-get">GET</span> /api/categories</a>
+    <a href="#categories-create"><span class="m m-post">POST</span> /api/categories</a>
+    <a href="#categories-update"><span class="m m-put">PUT</span> /api/categories/:id</a>
+    <a href="#categories-delete"><span class="m m-delete">DEL</span> /api/categories/:id</a>
+    <a href="#categories-items"><span class="m m-post">POST</span> /api/categories/:id/items</a>
+    <a href="#categories-items-update"><span class="m m-put">PUT</span> &nbsp;…/items/:itemId</a>
+    <a href="#categories-items-delete"><span class="m m-delete">DEL</span> &nbsp;…/items/:itemId</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Rules</div>
+    <a href="#rules-list"><span class="m m-get">GET</span> /api/rules</a>
+    <a href="#rules-update"><span class="m m-put">PUT</span> /api/rules/:level</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Assessment</div>
+    <a href="#assessment-evaluate"><span class="m m-post">POST</span> /api/assessment/evaluate</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Reference</div>
+    <a href="#models">Data Models</a>
+    <a href="#errors">Error Responses</a>
+    <a href="#security">Security</a>
+    <a href="#health">Health Check</a>
+  </div>
+</nav>
+
+<!-- main content -->
+<main>
+<div class="content">
+
+
+<!-- ────────────────────────── OVERVIEW ────────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="overview"></a>
+  <h1>cicdq — C++ Backend</h1>
+  <p class="lead">
+    A self-contained REST API server for the CI/CD Pipeline Maturity Questionnaire application.
+    Built in C++17 with header-only dependencies and an in-memory data store, it exposes
+    the same API contract as the reference Node.js backend so the frontend works against
+    either implementation without modification.
+  </p>
+
+  <div class="two-col">
+    <div class="card">
+      <h3 style="margin-top:0">Stack</h3>
+      <div class="table-wrap">
+        <table>
+          <tr><td><strong>Language</strong></td><td>C++17</td></tr>
+          <tr><td><strong>Build</strong></td><td>CMake 3.20+</td></tr>
+          <tr><td><strong>HTTP server</strong></td><td>cpp-httplib v0.15.3</td></tr>
+          <tr><td><strong>JSON</strong></td><td>nlohmann/json v3.11.3</td></tr>
+          <tr><td><strong>Threads</strong></td><td>8 worker threads</td></tr>
+          <tr><td><strong>Storage</strong></td><td>In-memory (no DB)</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Quick start</h3>
+      <div class="pre-label"><span>Shell</span></div>
+      <pre><code><span class="cmt"># configure &amp; build</span>
+cmake -S . -B build
+cmake --build build
+
+<span class="cmt"># set secret &amp; run</span>
+export JWT_SECRET=change_me
+./build/cicdq_server</code></pre>
+    </div>
+  </div>
+</div>
+
+
+<!-- ────────────────────────── ARCHITECTURE ────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="architecture"></a>
+  <h2>Architecture</h2>
+  <p>
+    All code lives in headers under <code>include/cicdq/</code>. There is a single
+    translation unit (<code>src/main.cpp</code>) that wires everything together. This
+    header-only design keeps compilation simple and eliminates the need for a linker
+    step between internal modules.
+  </p>
+
+  <div class="arch">
+    <div class="arch-box">
+      <div class="title">HTTP Layer</div>
+      <div class="sub">cpp-httplib<br>CORS · pre-routing · exception handler</div>
+    </div>
+    <div class="arch-box">
+      <div class="title">Route Handlers</div>
+      <div class="sub">routes/auth.hpp<br>routes/pipelines.hpp<br>routes/categories.hpp<br>routes/rules.hpp<br>routes/assessment.hpp</div>
+    </div>
+    <div class="arch-box">
+      <div class="title">Auth Middleware</div>
+      <div class="sub">auth.hpp<br>Bearer JWT extraction<br>Role checks</div>
+    </div>
+    <div class="arch-box">
+      <div class="title">Business Logic</div>
+      <div class="sub">assessment.hpp<br>Scoring · level mapping<br>Recommendations</div>
+    </div>
+    <div class="arch-box">
+      <div class="title">In-Memory Store</div>
+      <div class="sub">store.hpp<br>shared_mutex · R/W locks<br>Seeded on startup</div>
+    </div>
+    <div class="arch-box">
+      <div class="title">Crypto</div>
+      <div class="sub">crypto.hpp<br>SHA-256 · HMAC-SHA-256<br>Base64URL · UUID v4</div>
+    </div>
+  </div>
+
+  <h3>Request lifecycle</h3>
+  <pre><code>Client
+  │
+  ▼
+Pre-routing handler  ──► sets CORS headers on every response
+  │                  ──► returns 204 for OPTIONS pre-flight
+  ▼
+Route handler        ──► extract_user()  (verifies Bearer JWT)
+  │                  ──► parse_body()    (parses JSON, returns {} on error)
+  │                  ──► Store method    (shared_lock for reads, unique_lock for writes)
+  ▼
+send_json() / send_err()
+  │
+  ▼
+Global exception handler  ──► returns 500 {"error":"..."} on unhandled throw</code></pre>
+</div>
+
+
+<!-- ────────────────────────── STRUCTURE ────────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="structure"></a>
+  <h2>Project Structure</h2>
+
+  <div class="tree">
+<span class="dir">backend/</span>
+├── <span class="file">CMakeLists.txt</span>         <span class="ann">— build definition, FetchContent for dependencies</span>
+├── <span class="file">.env.example</span>            <span class="ann">— environment variable template</span>
+├── <span class="dir">docs/</span>
+│   └── <span class="file">index.html</span>          <span class="ann">— this file</span>
+├── <span class="dir">src/</span>
+│   └── <span class="file">main.cpp</span>            <span class="ann">— entry point: env reading, server setup, route registration</span>
+└── <span class="dir">include/</span>
+    └── <span class="dir">cicdq/</span>
+        ├── <span class="file">crypto.hpp</span>          <span class="ann">— SHA-256, HMAC-SHA-256, Base64URL, UUID v4 (FIPS 180-4 / RFC 2104 / RFC 4648)</span>
+        ├── <span class="file">jwt.hpp</span>             <span class="ann">— HS256 token sign &amp; verify (sign_token / verify_token)</span>
+        ├── <span class="file">types.hpp</span>           <span class="ann">— domain structs with nlohmann::json (de)serialisation</span>
+        ├── <span class="file">store.hpp</span>           <span class="ann">— thread-safe in-memory repository (Store class)</span>
+        ├── <span class="file">assessment.hpp</span>      <span class="ann">— scoring engine, level assignment, recommendations</span>
+        ├── <span class="file">auth.hpp</span>            <span class="ann">— extract_user(), is_admin(), send_json(), send_err(), parse_body()</span>
+        └── <span class="dir">routes/</span>
+            ├── <span class="file">auth.hpp</span>        <span class="ann">— POST /api/auth/login, /register</span>
+            ├── <span class="file">pipelines.hpp</span>   <span class="ann">— CRUD /api/pipelines</span>
+            ├── <span class="file">categories.hpp</span>  <span class="ann">— CRUD /api/categories &amp; /items</span>
+            ├── <span class="file">rules.hpp</span>       <span class="ann">— GET &amp; PUT /api/rules</span>
+            └── <span class="file">assessment.hpp</span>  <span class="ann">— POST /api/assessment/evaluate</span>
+  </div>
+</div>
+
+
+<!-- ────────────────────────── BUILD ────────────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="build"></a>
+  <h2>Building</h2>
+
+  <p>
+    Dependencies are downloaded on the first <code>cmake</code> configure via
+    <code>FetchContent</code> — no manual installation required.
+  </p>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#8505;</span>
+    <span>A C++17-compliant compiler is required: GCC&nbsp;&#x2265;&nbsp;9, Clang&nbsp;&#x2265;&nbsp;10, or MSVC&nbsp;2019 (v16.0).</span>
+  </div>
+
+  <h3>Linux / macOS</h3>
+  <div class="pre-label"><span>Shell</span></div>
+  <pre><code>cmake -S . -B build
+cmake --build build
+<span class="cmt"># binary: ./build/cicdq_server</span></code></pre>
+
+  <h3>Windows (MSVC)</h3>
+  <div class="pre-label"><span>PowerShell</span></div>
+  <pre><code>cmake -S . -B build
+cmake --build build --config Release
+<span class="cmt"># binary: .\build\Release\cicdq_server.exe</span></code></pre>
+
+  <h3>CMake targets</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Target</th><th>Description</th></tr>
+      <tr><td><code>cicdq_server</code></td><td>Main executable</td></tr>
+    </table>
+  </div>
+
+  <p>
+    On Windows, <code>ws2_32</code> is linked automatically for Winsock support.
+    On POSIX systems, <code>pthread</code> is linked for <code>std::thread</code> (used internally by cpp-httplib).
+  </p>
+</div>
+
+
+<!-- ────────────────────────── CONFIGURATION ────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="configuration"></a>
+  <h2>Configuration</h2>
+
+  <p>
+    Configuration is read from the process environment at startup.
+    Copy <code>.env.example</code> to <code>.env</code> and export the variables before running
+    (the server does not load <code>.env</code> files automatically).
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#9888;</span>
+    <span><strong>JWT_SECRET</strong> must be changed before any non-local deployment. The built-in fallback value is not secret.</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>PORT</code></td>
+          <td><code>3002</code></td>
+          <td>TCP port the HTTP server binds to on <code>0.0.0.0</code></td>
+        </tr>
+        <tr>
+          <td><code>JWT_SECRET</code></td>
+          <td><code>dev_secret_change_in_prod</code></td>
+          <td>HMAC-SHA-256 signing key. Use a cryptographically random string of at least 32 bytes in production.</td>
+        </tr>
+        <tr>
+          <td><code>FRONTEND_ORIGIN</code></td>
+          <td><code>http://localhost:5173</code></td>
+          <td>Exact origin sent in the <code>Access-Control-Allow-Origin</code> response header.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Example</h3>
+  <div class="pre-label"><span>Shell (Linux / macOS)</span></div>
+  <pre><code>export PORT=3002
+export JWT_SECRET="$(openssl rand -hex 32)"
+export FRONTEND_ORIGIN="http://localhost:5173"
+./build/cicdq_server</code></pre>
+
+  <div class="pre-label"><span>PowerShell (Windows)</span></div>
+  <pre><code>$env:PORT            = "3002"
+$env:JWT_SECRET      = "your_strong_random_secret_here"
+$env:FRONTEND_ORIGIN = "http://localhost:5173"
+.\build\Release\cicdq_server.exe</code></pre>
+</div>
+
+
+<!-- ────────────────────────── RUNNING ──────────────────────────────── -->
+<div class="section">
+  <a class="section-anchor" id="running"></a>
+  <h2>Running</h2>
+
+  <p>On successful startup the server prints:</p>
+  <pre><code>[cicdq C++] Backend listening on http://localhost:3002</code></pre>
+
+  <p>
+    The in-memory store is seeded with the following default account on every startup.
+    All data resets when the process exits.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Username</th><th>Password</th><th>Role</th></tr></thead>
+      <tbody><tr><td><code>admin</code></td><td><code>password</code></td><td><code>admin</code></td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#10003;</span>
+    <span>Verify the server is reachable with <code>GET /health</code> — it returns <code>{"status":"ok"}</code> with HTTP 200.</span>
+  </div>
+</div>
+
+
+<!-- authentication -->
+<div class="section">
+  <a class="section-anchor" id="auth-flow"></a>
+  <h2>Authentication</h2>
+
+  <p>
+    The API uses stateless JWT authentication (HS256 / HMAC-SHA-256). Tokens are issued
+    on login or register and expire after <strong>24 hours</strong>.
+  </p>
+
+  <h3>Using a token</h3>
+  <p>Pass the token in the <code>Authorization</code> header on every protected request:</p>
+  <pre><code>Authorization: Bearer &lt;token&gt;</code></pre>
+
+  <h3>Access levels</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Level</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="auth-tag auth-none">Public</span></td><td>No token required</td></tr>
+        <tr><td><span class="auth-tag auth-user">User</span></td><td>Any valid JWT</td></tr>
+        <tr><td><span class="auth-tag auth-owner">Owner</span></td><td>Valid JWT whose <code>id</code> matches the resource's <code>userId</code></td></tr>
+        <tr><td><span class="auth-tag auth-admin">Admin</span></td><td>Valid JWT with <code>role == "admin"</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- POST /api/auth/login -->
+  <a class="section-anchor" id="auth-login"></a>
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/auth/login</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Verifies credentials and returns a signed JWT together with the user object.</p>
+
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"username"</span>: <span class="str">"admin"</span>,
+  <span class="key">"password"</span>: <span class="str">"password"</span>
+}</code></pre>
+
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Credentials valid — token and user returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing username or password</td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Invalid credentials</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pre-label"><span>200 Response</span></div>
+    <pre><code>{
+  <span class="key">"token"</span>: <span class="str">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="key">"user"</span>: {
+    <span class="key">"id"</span>:       <span class="str">"a1b2c3d4-..."</span>,
+    <span class="key">"username"</span>: <span class="str">"admin"</span>,
+    <span class="key">"role"</span>:     <span class="str">"admin"</span>
+  }
+}</code></pre>
+  </div>
+
+  <!-- POST /api/auth/register -->
+  <a class="section-anchor" id="auth-register"></a>
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/auth/register</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Creates a new account with role <code>"user"</code> and returns a signed JWT.</p>
+
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"username"</span>: <span class="str">"alice"</span>,
+  <span class="key">"password"</span>: <span class="str">"secret123"</span>
+}</code></pre>
+
+    <h3>Validation</h3>
+    <ul style="margin: 0 0 14px 18px; color: #374151;">
+      <li>Both fields are required and must be non-empty</li>
+      <li>Password must be at least 6 characters</li>
+      <li>Username must not already be taken</li>
+    </ul>
+
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">201 Created</span></td><td>Account created — token and user returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing field or password too short</td></tr>
+          <tr><td><span class="status s-4xx">409 Conflict</span></td><td>Username already taken</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- pipelines -->
+<div class="section">
+  <a class="section-anchor" id="pipelines-list"></a>
+  <h2>Pipelines</h2>
+  <p>
+    A pipeline represents one assessed CI/CD pipeline. Each pipeline belongs to the
+    user who created it and stores the questionnaire answers together with the
+    computed score and maturity level.
+  </p>
+
+  <!-- GET /api/pipelines -->
+  <div class="endpoint-header">
+    <span class="method method-GET">GET</span>
+    <span class="endpoint-path">/api/pipelines</span>
+    <span class="auth-tag auth-user">User</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Returns all pipelines that belong to the authenticated user.</p>
+    <div class="pre-label"><span>200 Response — array of Pipeline</span></div>
+    <pre><code>[
+  {
+    <span class="key">"id"</span>:       <span class="str">"uuid"</span>,
+    <span class="key">"userId"</span>:   <span class="str">"uuid"</span>,
+    <span class="key">"name"</span>:     <span class="str">"my-pipeline"</span>,
+    <span class="key">"repoId"</span>:   <span class="str">"repo-abc"</span>,
+    <span class="key">"assessor"</span>: <span class="str">"Jane"</span>,
+    <span class="key">"repoLink"</span>: <span class="str">"https://github.com/org/repo"</span>,
+    <span class="key">"date"</span>:     <span class="str">"2025-01-15"</span>,
+    <span class="key">"score"</span>:    <span class="num">70</span>,
+    <span class="key">"level"</span>:    <span class="num">3</span>,
+    <span class="key">"answers"</span>:  { <span class="key">"b_cache"</span>: <span class="str">"DA"</span>, <span class="key">"b_logging"</span>: <span class="str">"NE"</span> }
+  }
+]</code></pre>
+  </div>
+
+  <!-- POST /api/pipelines -->
+  <a class="section-anchor" id="pipelines-create"></a>
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/pipelines</span>
+    <span class="auth-tag auth-user">User</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Creates a new pipeline assessment. The <code>userId</code> is taken from the JWT — it cannot be set by the caller. If <code>date</code> is omitted, today's UTC date is used.</p>
+
+    <h3>Request body</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>name</code></td><td>string</td><td>Yes</td><td>Human-readable pipeline name</td></tr>
+          <tr><td><code>repoId</code></td><td>string</td><td>No</td><td>Repository identifier</td></tr>
+          <tr><td><code>assessor</code></td><td>string</td><td>No</td><td>Name of the person performing the assessment</td></tr>
+          <tr><td><code>repoLink</code></td><td>string</td><td>No</td><td>URL to the repository</td></tr>
+          <tr><td><code>date</code></td><td>string</td><td>No</td><td>ISO 8601 date (YYYY-MM-DD). Defaults to today.</td></tr>
+          <tr><td><code>score</code></td><td>integer</td><td>No</td><td>Maturity score 0–100</td></tr>
+          <tr><td><code>level</code></td><td>integer</td><td>No</td><td>Maturity level 1–5</td></tr>
+          <tr><td><code>answers</code></td><td>object</td><td>No</td><td>Map of question ID → answer string</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">201 Created</span></td><td>Created pipeline returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing <code>name</code></td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Missing or invalid token</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- GET /api/pipelines/:id -->
+  <a class="section-anchor" id="pipelines-get"></a>
+  <div class="endpoint-header">
+    <span class="method method-GET">GET</span>
+    <span class="endpoint-path">/api/pipelines/<span class="param">:id</span></span>
+    <span class="auth-tag auth-owner">Owner</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Returns a single pipeline. Returns 403 if the pipeline belongs to a different user.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Pipeline object</td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Missing or invalid token</td></tr>
+          <tr><td><span class="status s-4xx">403 Forbidden</span></td><td>Pipeline belongs to another user</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No pipeline with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PUT /api/pipelines/:id -->
+  <a class="section-anchor" id="pipelines-update"></a>
+  <div class="endpoint-header">
+    <span class="method method-PUT">PUT</span>
+    <span class="endpoint-path">/api/pipelines/<span class="param">:id</span></span>
+    <span class="auth-tag auth-owner">Owner</span>
+  </div>
+  <div class="endpoint-body">
+    <p>
+      Partially updates a pipeline. Only fields present in the request body are applied —
+      omitted string fields keep their existing value. <code>score</code>, <code>level</code>,
+      and <code>answers</code> are always overwritten if present.
+    </p>
+
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Updated pipeline returned</td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Missing or invalid token</td></tr>
+          <tr><td><span class="status s-4xx">403 Forbidden</span></td><td>Pipeline belongs to another user</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No pipeline with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DELETE /api/pipelines/:id -->
+  <a class="section-anchor" id="pipelines-delete"></a>
+  <div class="endpoint-header">
+    <span class="method method-DELETE">DELETE</span>
+    <span class="endpoint-path">/api/pipelines/<span class="param">:id</span></span>
+    <span class="auth-tag auth-owner">Owner</span>
+  </div>
+  <div class="endpoint-body">
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">204 No Content</span></td><td>Pipeline deleted</td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Missing or invalid token</td></tr>
+          <tr><td><span class="status s-4xx">403 Forbidden</span></td><td>Pipeline belongs to another user</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No pipeline with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- categories -->
+<div class="section">
+  <a class="section-anchor" id="categories-list"></a>
+  <h2>Categories</h2>
+  <p>
+    Categories are the sections of the questionnaire (e.g. Build, Unit Testing, Deploy).
+    Each category contains a list of question items. Reading categories is public;
+    all mutations require admin privileges.
+  </p>
+  <p>
+    The store is seeded with four categories on startup:
+    <strong>Build</strong>, <strong>Unit Testing</strong>,
+    <strong>Analysis</strong>, and <strong>Deploy</strong>.
+  </p>
+
+  <!-- GET /api/categories -->
+  <div class="endpoint-header">
+    <span class="method method-GET">GET</span>
+    <span class="endpoint-path">/api/categories</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Returns all categories with their question items.</p>
+    <div class="pre-label"><span>200 Response</span></div>
+    <pre><code>[
+  {
+    <span class="key">"id"</span>:    <span class="str">"cat_build"</span>,
+    <span class="key">"title"</span>: <span class="str">"Build"</span>,
+    <span class="key">"items"</span>: [
+      {
+        <span class="key">"id"</span>:          <span class="str">"b_cache"</span>,
+        <span class="key">"label"</span>:       <span class="str">"Dependency caching"</span>,
+        <span class="key">"type"</span>:        <span class="str">"yes_no_na"</span>,
+        <span class="key">"description"</span>: <span class="str">"Is dependency caching used during the build?"</span>
+      }
+    ]
+  }
+]</code></pre>
+  </div>
+
+  <!-- POST /api/categories -->
+  <a class="section-anchor" id="categories-create"></a>
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/categories</span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Creates a new category, optionally with an initial set of items.</p>
+
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"title"</span>: <span class="str">"Security"</span>,
+  <span class="key">"items"</span>: [
+    {
+      <span class="key">"id"</span>:          <span class="str">"sec_sast"</span>,
+      <span class="key">"label"</span>:       <span class="str">"SAST scanning"</span>,
+      <span class="key">"type"</span>:        <span class="str">"yes_no_na"</span>,
+      <span class="key">"description"</span>: <span class="str">""</span>
+    }
+  ]
+}</code></pre>
+
+    <h3>Responses</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">201 Created</span></td><td>Created category returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing <code>title</code></td></tr>
+          <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>Missing or invalid token</td></tr>
+          <tr><td><span class="status s-4xx">403 Forbidden</span></td><td>Not an admin</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PUT /api/categories/:id -->
+  <a class="section-anchor" id="categories-update"></a>
+  <div class="endpoint-header">
+    <span class="method method-PUT">PUT</span>
+    <span class="endpoint-path">/api/categories/<span class="param">:id</span></span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Updates the category title. Existing items are not affected.</p>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{ <span class="key">"title"</span>: <span class="str">"New Title"</span> }</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Updated category returned</td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No category with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DELETE /api/categories/:id -->
+  <a class="section-anchor" id="categories-delete"></a>
+  <div class="endpoint-header">
+    <span class="method method-DELETE">DELETE</span>
+    <span class="endpoint-path">/api/categories/<span class="param">:id</span></span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Deletes a category and all its items.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">204 No Content</span></td><td>Deleted</td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No category with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- POST /api/categories/:id/items -->
+  <a class="section-anchor" id="categories-items"></a>
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/categories/<span class="param">:id</span>/items</span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Appends a new question item to the category. A UUID is assigned automatically.</p>
+
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"label"</span>:       <span class="str">"Secret scanning"</span>,
+  <span class="key">"type"</span>:        <span class="str">"yes_no_na"</span>,
+  <span class="key">"description"</span>: <span class="str">"Are repository secrets scanned automatically?"</span>
+}</code></pre>
+
+    <h3>Item types</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Type</th><th>Expected answer values</th></tr></thead>
+        <tbody>
+          <tr><td><code>yes_no_na</code></td><td><code>"DA"</code> (yes) · <code>"NE"</code> (no) · <code>"NA"</code> (not applicable — excluded from scoring)</td></tr>
+          <tr><td><code>text</code></td><td>Any non-empty string scores 10 points</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">201 Created</span></td><td>Created item returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing <code>label</code> or <code>type</code></td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No category with that ID</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PUT /api/categories/:id/items/:itemId -->
+  <a class="section-anchor" id="categories-items-update"></a>
+  <div class="endpoint-header">
+    <span class="method method-PUT">PUT</span>
+    <span class="endpoint-path">/api/categories/<span class="param">:id</span>/items/<span class="param">:itemId</span></span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Updates a question item's label, type, or description. Omitted fields keep their current value.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Updated item returned</td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>Category or item not found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DELETE /api/categories/:id/items/:itemId -->
+  <a class="section-anchor" id="categories-items-delete"></a>
+  <div class="endpoint-header">
+    <span class="method method-DELETE">DELETE</span>
+    <span class="endpoint-path">/api/categories/<span class="param">:id</span>/items/<span class="param">:itemId</span></span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">204 No Content</span></td><td>Item deleted</td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>Category or item not found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- rules -->
+<div class="section">
+  <a class="section-anchor" id="rules-list"></a>
+  <h2>Maturity Rules</h2>
+  <p>
+    Rules define the five maturity levels and the minimum score required to achieve each one.
+    They are seeded on startup and can be updated by admins at runtime.
+  </p>
+
+  <h3>Default rules</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Level</th><th>Name</th><th>Min score</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Začetna</td><td>0</td><td>Ad-hoc processes</td></tr>
+        <tr><td>2</td><td>Upravljana</td><td>25</td><td>Basic build and manual tests</td></tr>
+        <tr><td>3</td><td>Definirana</td><td>50</td><td>Automated testing and analysis</td></tr>
+        <tr><td>4</td><td>Kvantitativno upravljana</td><td>75</td><td>Quality gates, automated test environments</td></tr>
+        <tr><td>5</td><td>Optimizacijska</td><td>90</td><td>Zero downtime, auto-rollback, strong security</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- GET /api/rules -->
+  <div class="endpoint-header">
+    <span class="method method-GET">GET</span>
+    <span class="endpoint-path">/api/rules</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Returns all maturity level definitions ordered by level.</p>
+    <div class="pre-label"><span>200 Response</span></div>
+    <pre><code>[
+  { <span class="key">"level"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"Začetna"</span>,    <span class="key">"description"</span>: <span class="str">"Ad-hoc procesi."</span>,        <span class="key">"minScore"</span>: <span class="num">0</span>  },
+  { <span class="key">"level"</span>: <span class="num">2</span>, <span class="key">"name"</span>: <span class="str">"Upravljana"</span>, <span class="key">"description"</span>: <span class="str">"Osnovna gradnja..."</span>,      <span class="key">"minScore"</span>: <span class="num">25</span> },
+  { <span class="key">"level"</span>: <span class="num">3</span>, <span class="key">"name"</span>: <span class="str">"Definirana"</span>, <span class="key">"description"</span>: <span class="str">"Avtomatizirano..."</span>,      <span class="key">"minScore"</span>: <span class="num">50</span> },
+  { <span class="key">"level"</span>: <span class="num">4</span>, <span class="key">"name"</span>: <span class="str">"Kvantitativno upravljana"</span>, <span class="key">"description"</span>: <span class="str">"..."</span>, <span class="key">"minScore"</span>: <span class="num">75</span> },
+  { <span class="key">"level"</span>: <span class="num">5</span>, <span class="key">"name"</span>: <span class="str">"Optimizacijska"</span>,          <span class="key">"description"</span>: <span class="str">"..."</span>, <span class="key">"minScore"</span>: <span class="num">90</span> }
+]</code></pre>
+  </div>
+
+  <!-- PUT /api/rules/:level -->
+  <a class="section-anchor" id="rules-update"></a>
+  <div class="endpoint-header">
+    <span class="method method-PUT">PUT</span>
+    <span class="endpoint-path">/api/rules/<span class="param">:level</span></span>
+    <span class="auth-tag auth-admin">Admin</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Updates a maturity level definition. All three fields are required.</p>
+
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"name"</span>:        <span class="str">"Optimised"</span>,
+  <span class="key">"description"</span>: <span class="str">"Zero downtime, auto-rollback, strong security."</span>,
+  <span class="key">"minScore"</span>:    <span class="num">90</span>
+}</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Updated rule returned</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing required field</td></tr>
+          <tr><td><span class="status s-4xx">401 / 403</span></td><td>Auth failure</td></tr>
+          <tr><td><span class="status s-4xx">404 Not Found</span></td><td>No rule for that level</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- assessment -->
+<div class="section">
+  <a class="section-anchor" id="assessment-evaluate"></a>
+  <h2>Assessment</h2>
+  <p>
+    The assessment endpoint computes a maturity score from a set of questionnaire answers
+    and returns the achieved level plus targeted recommendations.
+    It is intentionally public so guests can evaluate without an account.
+  </p>
+
+  <!-- POST /api/assessment/evaluate -->
+  <div class="endpoint-header">
+    <span class="method method-POST">POST</span>
+    <span class="endpoint-path">/api/assessment/evaluate</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <h3>Request body</h3>
+    <div class="pre-label"><span>JSON</span></div>
+    <pre><code>{
+  <span class="key">"answers"</span>: {
+    <span class="key">"b_cache"</span>:      <span class="str">"DA"</span>,
+    <span class="key">"b_logging"</span>:    <span class="str">"NE"</span>,
+    <span class="key">"b_triggers"</span>:   <span class="str">"Push, PR"</span>,
+    <span class="key">"ut_terminate"</span>: <span class="str">"NA"</span>
+  }
+}</code></pre>
+
+    <p>
+      To score against a <strong>custom questionnaire</strong>, pass <code>categories</code>
+      and/or <code>rules</code> arrays in the same body — the server will use those instead
+      of its current in-memory versions.
+    </p>
+
+    <h3>Scoring algorithm</h3>
+    <ol style="margin: 0 0 14px 18px; color: #374151; line-height: 1.9;">
+      <li>For each <code>yes_no_na</code> item: skip if answered <code>"NA"</code>, add 10 to <code>effectiveMax</code>, add 10 to <code>score</code> if <code>"DA"</code>.</li>
+      <li>For each <code>text</code> item: add 10 to <code>effectiveMax</code>, add 10 to <code>score</code> if answer is non-empty.</li>
+      <li>Normalise: <code>normalizedScore = round(score / effectiveMax × 100)</code>, capped at 100.</li>
+      <li>Assign the highest maturity level whose <code>minScore ≤ normalizedScore</code>.</li>
+      <li>Build recommendations (capped at 15 items): upgrade tip first, then missing items.</li>
+    </ol>
+
+    <h3>Response</h3>
+    <div class="pre-label"><span>200 Response</span></div>
+    <pre><code>{
+  <span class="key">"score"</span>:     <span class="num">72</span>,
+  <span class="key">"level"</span>:     <span class="num">3</span>,
+  <span class="key">"levelName"</span>: <span class="str">"Definirana"</span>,
+  <span class="key">"missing"</span>: [
+    <span class="str">"Za dosego stopnje Kvantitativno upravljana potrebujete še 3 točk."</span>,
+    <span class="str">"Manjka v Build: Dependency caching"</span>,
+    <span class="str">"Manjka v Deploy: Automated rollback"</span>
+  ]
+}</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="status s-2xx">200 OK</span></td><td>Assessment result</td></tr>
+          <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing or non-object <code>answers</code> field</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- data models -->
+<div class="section">
+  <a class="section-anchor" id="models"></a>
+  <h2>Data Models</h2>
+
+  <h3>User</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string (UUID v4)</td><td>Generated on creation</td></tr>
+        <tr><td><code>username</code></td><td>string</td><td>Unique</td></tr>
+        <tr><td><code>role</code></td><td><code>"admin"</code> | <code>"user"</code></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.85rem;color:var(--txt-muted);">
+    <code>password_hash</code> is never included in API responses.
+  </p>
+
+  <h3>Pipeline</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string (UUID v4)</td><td>Generated on creation</td></tr>
+        <tr><td><code>userId</code></td><td>string (UUID v4)</td><td>Set from JWT on creation</td></tr>
+        <tr><td><code>name</code></td><td>string</td><td>Required</td></tr>
+        <tr><td><code>repoId</code></td><td>string</td><td>Optional</td></tr>
+        <tr><td><code>assessor</code></td><td>string</td><td>Optional</td></tr>
+        <tr><td><code>repoLink</code></td><td>string</td><td>Optional</td></tr>
+        <tr><td><code>date</code></td><td>string (YYYY-MM-DD)</td><td>Defaults to today UTC</td></tr>
+        <tr><td><code>score</code></td><td>integer</td><td>0–100</td></tr>
+        <tr><td><code>level</code></td><td>integer</td><td>1–5</td></tr>
+        <tr><td><code>answers</code></td><td>object&lt;string, string&gt;</td><td>question ID → answer</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Category</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string</td><td>Seeded IDs: <code>cat_build</code>, <code>cat_unit_testing</code>, <code>cat_analysis</code>, <code>cat_deploy</code></td></tr>
+        <tr><td><code>title</code></td><td>string</td><td></td></tr>
+        <tr><td><code>items</code></td><td>QuestionItem[]</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>QuestionItem</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string</td><td>UUID v4 (or seeded slug)</td></tr>
+        <tr><td><code>label</code></td><td>string</td><td>Short display text</td></tr>
+        <tr><td><code>type</code></td><td><code>"yes_no_na"</code> | <code>"text"</code></td><td></td></tr>
+        <tr><td><code>description</code></td><td>string</td><td>May be empty</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>MaturityRule</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>level</code></td><td>integer</td><td>1–5, immutable</td></tr>
+        <tr><td><code>name</code></td><td>string</td><td></td></tr>
+        <tr><td><code>description</code></td><td>string</td><td></td></tr>
+        <tr><td><code>minScore</code></td><td>integer</td><td>0–100</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>JWT Payload</h3>
+  <div class="pre-label"><span>Decoded payload</span></div>
+  <pre><code>{
+  <span class="key">"id"</span>:       <span class="str">"uuid"</span>,
+  <span class="key">"username"</span>: <span class="str">"alice"</span>,
+  <span class="key">"role"</span>:     <span class="str">"user"</span>,
+  <span class="key">"exp"</span>:      <span class="num">1735689600</span>   <span class="cmt">// Unix timestamp, now + 86400 s</span>
+}</code></pre>
+</div>
+
+
+<!-- error responses -->
+<div class="section">
+  <a class="section-anchor" id="errors"></a>
+  <h2>Error Responses</h2>
+
+  <p>All error responses use the same envelope:</p>
+  <div class="pre-label"><span>JSON</span></div>
+  <pre><code>{ <span class="key">"error"</span>: <span class="str">"Human-readable error message."</span> }</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Status</th><th>Typical cause</th></tr></thead>
+      <tbody>
+        <tr><td><span class="status s-4xx">400 Bad Request</span></td><td>Missing required field or failed validation</td></tr>
+        <tr><td><span class="status s-4xx">401 Unauthorized</span></td><td>No or invalid/expired <code>Authorization</code> header</td></tr>
+        <tr><td><span class="status s-4xx">403 Forbidden</span></td><td>Valid token but insufficient role or wrong owner</td></tr>
+        <tr><td><span class="status s-4xx">404 Not Found</span></td><td>Resource does not exist</td></tr>
+        <tr><td><span class="status s-4xx">409 Conflict</span></td><td>Username already taken</td></tr>
+        <tr><td><span class="status s-5xx">500 Internal Server Error</span></td><td>Unhandled C++ exception — message from <code>e.what()</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- security -->
+<div class="section">
+  <a class="section-anchor" id="security"></a>
+  <h2>Security</h2>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#9888;</span>
+    <span>
+      This backend is designed for development and demonstration. Before production use,
+      replace SHA-256 password hashing with a dedicated password-hashing algorithm
+      (bcrypt, scrypt, or Argon2) and enable TLS.
+    </span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Concern</th><th>Current approach</th><th>Recommendation for production</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Password storage</strong></td>
+          <td><code>salt:SHA256(salt+password)</code> — random 8-char hex salt, custom FIPS 180-4 implementation</td>
+          <td>Replace with bcrypt (cost ≥ 12), scrypt, or Argon2id</td>
+        </tr>
+        <tr>
+          <td><strong>JWT signing</strong></td>
+          <td>HMAC-SHA-256 (HS256), custom implementation (RFC 2104)</td>
+          <td>Use a battle-tested JWT library; consider RS256 for multi-service setups</td>
+        </tr>
+        <tr>
+          <td><strong>JWT secret</strong></td>
+          <td>Read from <code>JWT_SECRET</code> env var; hardcoded fallback for dev</td>
+          <td>Inject via secrets manager; rotate periodically; minimum 32 random bytes</td>
+        </tr>
+        <tr>
+          <td><strong>Token expiry</strong></td>
+          <td>24 hours, checked on every request</td>
+          <td>Consider shorter-lived access tokens + refresh token rotation</td>
+        </tr>
+        <tr>
+          <td><strong>CORS</strong></td>
+          <td>Single allowed origin via <code>FRONTEND_ORIGIN</code></td>
+          <td>Keep restricted; never use <code>*</code> with credentialed requests</td>
+        </tr>
+        <tr>
+          <td><strong>Transport</strong></td>
+          <td>Plain HTTP (cpp-httplib HTTP-only build)</td>
+          <td>Terminate TLS at a reverse proxy (nginx, Caddy)</td>
+        </tr>
+        <tr>
+          <td><strong>Data persistence</strong></td>
+          <td>In-memory only — all data lost on restart</td>
+          <td>Attach a persistent database before any real data is stored</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- health check -->
+<div class="section">
+  <a class="section-anchor" id="health"></a>
+  <h2>Health Check</h2>
+
+  <div class="endpoint-header">
+    <span class="method method-GET">GET</span>
+    <span class="endpoint-path">/health</span>
+    <span class="auth-tag auth-none">Public</span>
+  </div>
+  <div class="endpoint-body">
+    <p>Always returns HTTP 200. Use this for load-balancer probes or uptime monitors.</p>
+    <div class="pre-label"><span>200 Response</span></div>
+    <pre><code>{ <span class="key">"status"</span>: <span class="str">"ok"</span> }</code></pre>
+  </div>
+</div>
+
+
+</div><!-- .content -->
+</main>
+
+<!-- scrollspy -->
+<script>
+  (function () {
+    const links = document.querySelectorAll('#sidebar a');
+    const anchors = [];
+
+    links.forEach(link => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) anchors.push({ el, link });
+    });
+
+    function onScroll() {
+      const scrollY = window.scrollY + 80;
+      let current = anchors[0];
+
+      for (const { el, link } of anchors) {
+        const top = el.getBoundingClientRect().top + window.scrollY;
+        if (scrollY >= top) current = { el, link };
+      }
+
+      links.forEach(l => l.classList.remove('active'));
+      if (current) current.link.classList.add('active');
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
