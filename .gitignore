@@ -11,14 +11,38 @@ node_modules
 dist
 dist-ssr
 *.local
+Vprasalnik-Za-CI-CD/node_modules/
+Vprasalnik-Za-CI-CD/dist/
+
+# CMake build output
+backend/build/
+
+# Visual Studio / CMake generated files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.slnx
+*.sln
+*.suo
+*.ntvs*
+*.njsproj
+*.sw?
+*.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Compiled binaries
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
