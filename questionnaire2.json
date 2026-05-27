@@ -1,0 +1,127 @@
+{
+  "version": "2.0",
+  "title": "Ocena zrelosti agilnih procesov (Agile & Scrum)",
+  "description": "Vprašalnik za popis in oceno zrelosti izvajanja agilnih praks in ogrodja Scrum znotraj razvojnih ekip. Na podlagi odgovorov sistem določi nivo agilne zrelosti.",
+  "sections": [
+    {
+      "id": "sprint_planning",
+      "label": "Planiranje sprinta (Sprint Planning)",
+      "type": "checkbox",
+      "description": "Proces načrtovanja dela za prihajajoči cikel (sprint), kjer ekipa definira cilj sprinta in izbere naloge.",
+      "items": [
+        {
+          "id": "planning_present",
+          "label": "Sprint planning se izvaja redno pred vsakim sprintom",
+          "type": "checkbox",
+          "description": "Ekipa si vzame namenski čas za načrtovanje naslednjega cikla.",
+          "items": [
+            {
+              "id": "planning_participants",
+              "label": "Udeleženci na planiranju",
+              "type": "multiselect",
+              "description": "Kdo vse aktivno sodeluje pri procesu načrtovanja.",
+              "options": [
+                { "value": "PO", "label": "Product Owner (Lastnik produkta)" },
+                { "value": "SM", "label": "Scrum Master" },
+                { "value": "DEV", "label": "Razvojna ekipa (Dev Team)" },
+                { "value": "STAKEHOLDERS", "label": "Zunanje stranke / Deležniki" }
+              ]
+            },
+            {
+              "id": "planning_estimation_method",
+              "label": "Metoda ocenjevanja nalog",
+              "type": "multiselect",
+              "description": "Način, na katerega ekipa ocenjuje zahtevnost ali velikost nalog.",
+              "options": [
+                { "value": "STORY_POINTS", "label": "Story Points (Fibonaccijevo zaporedje)" },
+                { "value": "HOURS", "label": "Idealne ure (Hours)" },
+                { "value": "T_SHIRT", "label": "T-shirt velikosti (S, M, L, XL)" },
+                { "value": "NO_ESTIMATES", "label": "Brez ocenjevanja (No Estimates)" }
+              ]
+            },
+            {
+              "id": "planning_has_goal",
+              "label": "Definiranje cilja sprinta (Sprint Goal)",
+              "type": "checkbox",
+              "description": "Ekipa pred začetkom sprinta jasno zapiše enoten poslovni ali tehnični cilj cikla."
+            },
+            {
+              "id": "planning_velocity_tracked",
+              "label": "Upoštevanje zgodovinske zmogljivosti (Velocity)",
+              "type": "checkbox",
+              "description": "Pri planiranju se upošteva povprečno število zaključenih nalog/točk iz prejšnjih sprintov."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "daily_scrum",
+      "label": "Dnevni sestanek (Daily Scrum)",
+      "type": "checkbox",
+      "description": "Kratek dnevni usklajevalni sestanek ekipe za pregled napredka proti cilju sprinta.",
+      "items": [
+        {
+          "id": "daily_present",
+          "label": "Daily Scrum se izvaja vsak delovni dan",
+          "type": "checkbox",
+          "description": "Redno dnevno srečanje razvojne ekipe.",
+          "items": [
+            {
+              "id": "daily_timebox",
+              "label": "Sestanek je časovno omejen (Timeboxed)",
+              "type": "checkbox",
+              "description": "Sestanek traja največ 15 minut, ne glede na velikost ekipe."
+            },
+            {
+              "id": "daily_focus",
+              "label": "Fokus na 3 ključna vprašanja ali na napredek tabele",
+              "type": "checkbox",
+              "description": "Govori se izključno o delu prejšnjega dne, planu za danes in morebitnih blokadah."
+            },
+            {
+              "id": "daily_blocker_tracking",
+              "label": "Eksplicitno beleženje blokad (Impediments)",
+              "type": "checkbox",
+              "description": "Omejitve in težave se takoj zabeležijo; Scrum Master prevzame njihovo reševanje izven sestanka."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sprint_retro",
+      "label": "Retrospektiva sprinta (Sprint Retrospective)",
+      "type": "checkbox",
+      "description": "Srečanje ob koncu sprinta, namenjeno analizi procesov, odnosov in orodij ter iskanju izboljšav.",
+      "items": [
+        {
+          "id": "retro_present",
+          "label": "Retrospektiva se izvaja ob zaključku vsakega sprinta",
+          "type": "checkbox",
+          "description": "Ekipa si vzame čas za refleksijo in izboljšanje načina dela.",
+          "items": [
+            {
+              "id": "retro_action_items",
+              "label": "Kreiranje konkretnih akcijskih korakov",
+              "type": "checkbox",
+              "description": "Rezultat retrospektive so jasne, merljive naloge za izboljšanje procesa v naslednjem sprintu."
+            },
+            {
+              "id": "retro_action_items_count",
+              "label": "Povprečno število sprejetih izboljšav na sprint",
+              "type": "numeric",
+              "description": "Število akcijskih načrtov, ki jih ekipa realno sprejme v naslednji cikel."
+            },
+            {
+              "id": "retro_open_atmosphere",
+              "label": "Sodelovanje vseh članov brez iskanja krivca (Blameless)",
+              "type": "checkbox",
+              "description": "Ozračje je varno in spodbuja konstruktivno kritiko ter učenje iz napak."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

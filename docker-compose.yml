@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: cicdq-backend
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - JWT_SECRET=dev_secret_change_in_prod
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/vprasalnik
+    restart: unless-stopped
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: development
+    container_name: cicdq-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    container_name: cicdq-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=vprasalnik
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./vprasalnik.sql:/docker-entrypoint-initdb.d/vprasalnik.sql
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

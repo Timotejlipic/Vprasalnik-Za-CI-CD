@@ -1,0 +1,39 @@
+# Multi-stage Dockerfile for C++ Backend
+FROM alpine:3.19 AS builder
+
+# Install build dependencies (including PostgreSQL dev headers)
+RUN apk add --no-cache cmake make g++ git postgresql-dev
+
+WORKDIR /app
+
+# Copy the backend source code
+COPY backend/ /app/
+
+# Configure and build in Release mode
+RUN cmake -DCMAKE_BUILD_TYPE=Release . && \
+    make -j$(nproc)
+
+# Runtime stage
+FROM alpine:3.19
+
+# Install runtime dependencies for C++ and PostgreSQL client library
+RUN apk add --no-cache libstdc++ libpq
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/cicdq_server /app/cicdq_server
+
+# Copy default config files
+COPY questionnaire_config.json /app/questionnaire_config.json
+COPY questionnaire2.json /app/questionnaire2.json
+
+# Default environment variables
+ENV PORT=3002
+ENV JWT_SECRET=dev_secret_change_in_prod
+ENV FRONTEND_ORIGIN=http://localhost:5173
+
+EXPOSE 3002
+
+# Run the backend
+CMD ["/app/cicdq_server"]

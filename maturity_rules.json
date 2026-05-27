@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "title": "CI/CD Pipeline Maturity Model – Pravila za določanje nivoja zrelosti",
+  "description": "Pravila za izračun nivoja zrelosti CI/CD cevovoda. Sistem preveri pogoje od nivoja 5 navzdol in dodeli najvišji nivo, pri katerem so izpolnjeni vsi pogoji.",
+  "evaluation_strategy": "highest_satisfied",
+  "rule_operators": {
+    "=": "Vrednost je enaka (privzeto za checkbox in tekst)",
+    ">=": "Vrednost je večja ali enaka (za numeric)",
+    ">": "Vrednost je večja (za numeric)",
+    "<=": "Vrednost je manjša ali enaka (za numeric)",
+    "<": "Vrednost je manjša (za numeric)",
+    "includes": "Multiselect vsebuje dano vrednost; za zahtevo po več vrednostih se navede ločeno pravilo za vsako"
+  },
+  "levels": [
+    {
+      "id": 5,
+      "label": "Nivo 5 – Optimizacija",
+      "short_description": "Cevovod je v celoti avtomatiziran, se meri in nenehno izboljšuje.",
+      "full_description": "Build, unit testi in deploy so popolnoma avtomatizirani z več prožilci. Pokritost kode je vsaj 80 % z definiranim pragom. Artefakti so verziionirani. Deploy pokriva produkcijsko okolje.",
+      "criteria": [
+        { "item_id": "build_present", "value": true },
+        { "item_id": "build_other_triggers", "operator": "includes", "value": "PUSH" },
+        { "item_id": "build_other_triggers", "operator": "includes", "value": "PULLRQ" },
+        { "item_id": "build_artifacts_stored", "value": true },
+        { "item_id": "build_artifact_versioning", "value": true },
+        { "item_id": "build_notification", "value": true },
+        { "item_id": "unit_test_present", "value": true },
+        { "item_id": "unit_test_pipeline_fail", "value": true },
+        { "item_id": "unit_test_report", "value": true },
+        { "item_id": "unit_test_coverage_tracking", "value": true },
+        { "item_id": "unit_test_coverage_percent", "operator": ">=", "value": 80 },
+        { "item_id": "unit_test_coverage_gate", "value": true },
+        { "item_id": "deploy_present", "value": true },
+        { "item_id": "deploy_environments", "operator": "includes", "value": "test" },
+        { "item_id": "deploy_environments", "operator": "includes", "value": "staging" },
+        { "item_id": "deploy_environments", "operator": "includes", "value": "production" }
+      ],
+      "improvement_suggestions": {
+        "build_other_triggers": "Nastavite prožilca PUSH in PULLRQ za build.",
+        "build_artifact_versioning": "Uvedite avtomatsko verzioniranje artefaktov (semantična verzija, git tag, build number).",
+        "build_notification": "Dodajte obvestila ekipi ob uspehu ali neuspehu build-a.",
+        "unit_test_coverage_percent": "Povečajte pokritost kode s testi na vsaj 80 %.",
+        "unit_test_coverage_gate": "Definirajte minimalni prag pokritosti kode; cevovod naj ne uspe, če je pokritost nižja.",
+        "deploy_environments": "Dodajte avtomatski deploy v okolja: test, staging in production."
+      }
+    },
+    {
+      "id": 4,
+      "label": "Nivo 4 – Kvantitativno upravljan",
+      "short_description": "Ključne faze so avtomatizirane, pokritost kode se meri, deploy pokriva staging.",
+      "full_description": "Build in unit testi so avtomatizirani z vsaj enim prožilcem. Pokritost kode je vsaj 60 %. Artefakti se hranijo. Deploy je avtomatiziran in pokriva vsaj staging okolje.",
+      "criteria": [
+        { "item_id": "build_present", "value": true },
+        { "item_id": "build_other_triggers", "operator": "includes", "value": "PUSH" },
+        { "item_id": "build_artifacts_stored", "value": true },
+        { "item_id": "unit_test_present", "value": true },
+        { "item_id": "unit_test_pipeline_fail", "value": true },
+        { "item_id": "unit_test_report", "value": true },
+        { "item_id": "unit_test_coverage_tracking", "value": true },
+        { "item_id": "unit_test_coverage_percent", "operator": ">=", "value": 60 },
+        { "item_id": "deploy_present", "value": true },
+        { "item_id": "deploy_environments", "operator": "includes", "value": "test" },
+        { "item_id": "deploy_environments", "operator": "includes", "value": "staging" }
+      ],
+      "improvement_suggestions": {
+        "build_other_triggers": "Nastavite prožilec PUSH za avtomatski build ob vsakem commitu.",
+        "build_artifacts_stored": "Konfigurirajte shranjevanje build artefaktov (GitHub Artifacts, Nexus, Artifactory …).",
+        "unit_test_pipeline_fail": "Nastavite cevovod, da se ustavi ob neuspehu unit testov (fail-fast).",
+        "unit_test_report": "Generirajte testno poročilo in ga shranjujte kot artefakt.",
+        "unit_test_coverage_tracking": "Dodajte merjenje pokritosti kode (JaCoCo, Istanbul, Coverage.py …).",
+        "unit_test_coverage_percent": "Povečajte pokritost kode s testi na vsaj 60 %.",
+        "deploy_environments": "Dodajte avtomatski deploy v okolji test in staging."
+      }
+    },
+    {
+      "id": 3,
+      "label": "Nivo 3 – Konsistenten",
+      "short_description": "Build in unit testi so avtomatizirani z vsaj enim prožilcem. Deploy je prisoten.",
+      "full_description": "Avtomatizirani build se sproži ob vsaj enem dogodku. Unit testi so del cevovoda, ustavijo ga ob neuspehu in generirajo poročilo. Deploy je prisoten.",
+      "criteria": [
+        { "item_id": "build_present", "value": true },
+        { "item_id": "build_other_triggers", "operator": "includes", "value": "PUSH" },
+        { "item_id": "unit_test_present", "value": true },
+        { "item_id": "unit_test_pipeline_fail", "value": true },
+        { "item_id": "unit_test_report", "value": true },
+        { "item_id": "deploy_present", "value": true }
+      ],
+      "improvement_suggestions": {
+        "build_other_triggers": "Nastavite prožilec PUSH za avtomatski build ob vsakem commitu.",
+        "unit_test_pipeline_fail": "Nastavite cevovod, da se ustavi ob neuspehu unit testov.",
+        "unit_test_report": "Generirajte testno poročilo.",
+        "deploy_present": "Uvedite avtomatiziran deploy korak v cevovod."
+      }
+    },
+    {
+      "id": 2,
+      "label": "Nivo 2 – Ponovljiv",
+      "short_description": "Osnovni build in unit testi so avtomatizirani.",
+      "full_description": "Obstaja avtomatizirani build korak z vsaj enim prožilcem. Unit testi so del cevovoda.",
+      "criteria": [
+        { "item_id": "build_present", "value": true },
+        { "item_id": "build_other_triggers", "operator": "includes", "value": "PUSH" },
+        { "item_id": "unit_test_present", "value": true }
+      ],
+      "improvement_suggestions": {
+        "build_present": "Uvedite avtomatiziran build korak (npr. GitHub Actions, GitLab CI, Jenkins).",
+        "build_other_triggers": "Nastavite vsaj en avtomatski prožilec za build (npr. PUSH).",
+        "unit_test_present": "Dodajte avtomatizirano izvajanje unit testov v cevovod."
+      }
+    },
+    {
+      "id": 1,
+      "label": "Nivo 1 – Regresiven",
+      "short_description": "Ni avtomatiziranega cevovoda ali pa je prisoten le ročni build brez testov.",
+      "full_description": "Nivo 1 se dodeli, kadar cevovod ne izpolnjuje pogojev nobenega višjega nivoja. Procesi so ročni ali nedefinirani.",
+      "criteria": [],
+      "improvement_suggestions": {
+        "build_present": "Začnite z uvedbo avtomatiziranega build koraka (npr. GitHub Actions, GitLab CI, Jenkins).",
+        "unit_test_present": "Dodajte enote kode s testi in jih vključite v cevovod."
+      }
+    }
+  ]
+}

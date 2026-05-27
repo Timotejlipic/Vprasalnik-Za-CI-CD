@@ -1,0 +1,482 @@
+{
+    "categories": [
+        {
+            "id": "cat_build",
+            "items": [
+                {
+                    "description": "Ali je cevovod mogoče sprožiti ročno prek uporabniškega vmesnika?",
+                    "id": "b_manual",
+                    "label": "Manual trigger",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "Naštejte ostale načine proženja.",
+                    "id": "b_triggers",
+                    "label": "Other triggers (Push, PR, Sched, API)",
+                    "type": "text"
+                },
+                {
+                    "description": "Ali za gradnjo uporabljate lastne/dedicirane strežnike?",
+                    "id": "b_dedicated",
+                    "label": "Uses dedicated build server (outside GitHub runner)",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "Ali so logi gradnje podrobno beleženi in dostopni?",
+                    "id": "b_logging",
+                    "label": "Explicit build logging",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "Ali se pri gradnji uporablja predpomnjenje odvisnosti?",
+                    "id": "b_cache",
+                    "label": "Dependency caching",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "Ali se zgrajeni paketi/artefakti varno shranijo?",
+                    "id": "b_artifacts",
+                    "label": "Build artifacts are stored",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_versioning",
+                    "label": "Automatic artifact versioning",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_notification",
+                    "label": "Build success/failure notification",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_report",
+                    "label": "Build report creation",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_concurrency",
+                    "label": "Concurrency (multiple builds simultaneously)",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_standardized",
+                    "label": "Build process is standardized for all environments",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_only_changed",
+                    "label": "Build only changed components",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "b_other",
+                    "label": "Other features",
+                    "type": "text"
+                }
+            ],
+            "title": "Build"
+        },
+        {
+            "id": "cat_unit_testing",
+            "items": [
+                {
+                    "description": "",
+                    "id": "ut_manual",
+                    "label": "Manual trigger",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_triggers",
+                    "label": "Other triggers",
+                    "type": "text"
+                },
+                {
+                    "description": "",
+                    "id": "ut_dedicated",
+                    "label": "Uses dedicated test server",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_new_build",
+                    "label": "Requires new build to run",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_logging",
+                    "label": "Explicit test logging",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_report",
+                    "label": "Test report creation",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_artifacts",
+                    "label": "Test artifacts are stored",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_notification",
+                    "label": "Test success/failure notification",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_terminate",
+                    "label": "Pipeline terminates if tests fail",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "ut_issue",
+                    "label": "Automatic issue creation on test failure",
+                    "type": "yes_no_na"
+                }
+            ],
+            "title": "Unit Testing"
+        },
+        {
+            "id": "cat_analysis",
+            "items": [
+                {
+                    "description": "",
+                    "id": "an_manual",
+                    "label": "Manual trigger",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_depends",
+                    "label": "Depends on (Build, Test...)",
+                    "type": "text"
+                },
+                {
+                    "description": "",
+                    "id": "an_static",
+                    "label": "Includes static code analysis",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_gate_fail",
+                    "label": "Pipeline terminates if quality gate fails",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_security",
+                    "label": "Includes security analysis",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_vuln",
+                    "label": "Includes dependency vulnerability check",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_report",
+                    "label": "Analysis report creation",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_license",
+                    "label": "Includes license check",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_compliance",
+                    "label": "Includes standards / regulations compliance check",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_linting",
+                    "label": "Includes linting",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_pr_review",
+                    "label": "Automated PR review",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_gate_notif",
+                    "label": "Quality / security gate success/failure notification",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "an_artifacts",
+                    "label": "Analysis results/artifacts are stored",
+                    "type": "yes_no_na"
+                }
+            ],
+            "title": "Analysis (SonarQube, Linting...)"
+        },
+        {
+            "id": "cat_deploy",
+            "items": [
+                {
+                    "description": "",
+                    "id": "dp_manual",
+                    "label": "Manual trigger",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_depends",
+                    "label": "Depends on",
+                    "type": "text"
+                },
+                {
+                    "description": "",
+                    "id": "dp_logging",
+                    "label": "Explicit deploy logging",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_test",
+                    "label": "Test deploy",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_staging",
+                    "label": "Staging deploy",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_prod",
+                    "label": "Production deploy",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_standardized",
+                    "label": "Deploy process is standardized for all environments",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_check",
+                    "label": "Deploy success check",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_rollback",
+                    "label": "Automated rollback",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_infra",
+                    "label": "Infrastructure provisioning",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_db",
+                    "label": "Automated database migration / preparation",
+                    "type": "yes_no_na"
+                },
+                {
+                    "description": "",
+                    "id": "dp_zero_downtime",
+                    "label": "Zero-downtime deploy",
+                    "type": "yes_no_na"
+                }
+            ],
+            "title": "Deploy"
+        }
+    ],
+    "pipelines": [],
+    "questionnaire": {
+        "description": "Nova različica vprašalnika z dodatnimi kontrolami in testiranjem.",
+        "sections": [
+            {
+                "categories": [
+                    {
+                        "id": "cat_build",
+                        "items": [
+                            {
+                                "description": "Ali je cevovod mogoče sprožiti ročno prek uporabniškega vmesnika?",
+                                "id": "b_manual",
+                                "label": "Manual trigger",
+                                "type": "yes_no_na"
+                            },
+                            {
+                                "description": "Naštejte ostale načine proženja.",
+                                "id": "b_triggers",
+                                "label": "Other triggers (Push, PR, Sched, API)",
+                                "type": "text"
+                            }
+                        ],
+                        "title": "Build"
+                    }
+                ],
+                "id": "sc_build",
+                "label": "Gradnja (Build)"
+            },
+            {
+                "categories": [
+                    {
+                        "id": "cat_unit_testing",
+                        "items": [
+                            {
+                                "description": "",
+                                "id": "ut_manual",
+                                "label": "Manual trigger",
+                                "type": "yes_no_na"
+                            }
+                        ],
+                        "title": "Unit Testing"
+                    }
+                ],
+                "id": "sc_testing",
+                "label": "Testiranje (Testing)"
+            }
+        ],
+        "title": "CI/CD Vprašalnik v2.0",
+        "version": "2.0"
+    },
+    "questionnaire_versions": [
+        {
+            "description": "Osnovna različica vprašalnika za oceno CI/CD zrelosti.",
+            "sections": [
+                {
+                    "categories": [
+                        {
+                            "id": "cat_build",
+                            "items": [
+                                {
+                                    "description": "Ali je cevovod mogoče sprožiti ročno prek uporabniškega vmesnika?",
+                                    "id": "b_manual",
+                                    "label": "Manual trigger",
+                                    "type": "yes_no_na"
+                                }
+                            ],
+                            "title": "Build"
+                        }
+                    ],
+                    "id": "sc_build",
+                    "label": "Gradnja (Build)"
+                }
+            ],
+            "title": "CI/CD Vprašalnik v1.0",
+            "version": "1.0"
+        },
+        {
+            "description": "Nova različica vprašalnika z dodatnimi kontrolami in testiranjem.",
+            "sections": [
+                {
+                    "categories": [
+                        {
+                            "id": "cat_build",
+                            "items": [
+                                {
+                                    "description": "Ali je cevovod mogoče sprožiti ročno prek uporabniškega vmesnika?",
+                                    "id": "b_manual",
+                                    "label": "Manual trigger",
+                                    "type": "yes_no_na"
+                                },
+                                {
+                                    "description": "Naštejte ostale načine proženja.",
+                                    "id": "b_triggers",
+                                    "label": "Other triggers (Push, PR, Sched, API)",
+                                    "type": "text"
+                                }
+                            ],
+                            "title": "Build"
+                        }
+                    ],
+                    "id": "sc_build",
+                    "label": "Gradnja (Build)"
+                },
+                {
+                    "categories": [
+                        {
+                            "id": "cat_unit_testing",
+                            "items": [
+                                {
+                                    "description": "",
+                                    "id": "ut_manual",
+                                    "label": "Manual trigger",
+                                    "type": "yes_no_na"
+                                }
+                            ],
+                            "title": "Unit Testing"
+                        }
+                    ],
+                    "id": "sc_testing",
+                    "label": "Testiranje (Testing)"
+                }
+            ],
+            "title": "CI/CD Vprašalnik v2.0",
+            "version": "2.0"
+        }
+    ],
+    "rules": [
+        {
+            "description": "Ad-hoc procesi.",
+            "level": 1,
+            "minScore": 0,
+            "name": "Začetna"
+        },
+        {
+            "description": "Osnovna gradnja in ročni testi.",
+            "level": 2,
+            "minScore": 25,
+            "name": "Upravljana"
+        },
+        {
+            "description": "Avtomatizirano testiranje in analiza.",
+            "level": 3,
+            "minScore": 50,
+            "name": "Definirana"
+        },
+        {
+            "description": "Uveljavljena kakovostna vrata, avtomatizirano testno okolje.",
+            "level": 4,
+            "minScore": 75,
+            "name": "Kvantitativno upravljana"
+        },
+        {
+            "description": "Brez izpadov, samodejna povrnitev, močna varnost.",
+            "level": 5,
+            "minScore": 90,
+            "name": "Optimizacijska"
+        }
+    ],
+    "users": [
+        {
+            "id": "8b77331a-5685-4f28-9ecf-bebc18287fc7",
+            "password_hash": "b3ce7002:47192bbf48e2e9932624aea9baa75fab865f882cd2d8ce87b1482c730437a569",
+            "role": "admin",
+            "username": "admin"
+        }
+    ]
+}

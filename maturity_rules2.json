@@ -1,0 +1,106 @@
+{
+  "version": "2.0",
+  "title": "Agile & Scrum Maturity Model – Pravila za določanje nivoja agilnosti",
+  "description": "Pravila za izračun nivoja agilne zrelosti razvojne ekipe. Sistem preveri pogoje od nivoja 5 navzdol in dodeli najvišji nivo, pri katerem so izpolnjeni vsi pogoji.",
+  "evaluation_strategy": "highest_satisfied",
+  "rule_operators": {
+    " =": "Vrednost je enaka (privzeto za checkbox in tekst)",
+    ">=": "Vrednost je večja ali enaka (za numeric)",
+    ">": "Vrednost je večja (za numeric)",
+    "< =": "Vrednost je manjša ali enaka (za numeric)",
+    "<": "Vrednost je manjša (za numeric)",
+    "includes": "Multiselect vsebuje dano vrednost"
+  },
+  "levels": [
+    {
+      "id": 5,
+      "label": "Nivo 5 – Visoko zmogljiva ekipa (High-Performing)",
+      "short_description": "Ekipa je popolnoma samostojna, procesi so optimizirani, izboljšave se uvajajo takoj.",
+      "full_description": "Vsi ključni deležniki (PO, SM, DEV) sodelujejo na planiranju, nalogam se določajo Story Pointi in jasen cilj sprinta. Dnevni sestanki sono časovno omejeni z beleženjem blokad. Retrospektiva rodi vsaj 2 konkretni izboljšavi na cikel v varnem okolju.",
+      "criteria": [
+        { "item_id": "planning_present", "value": true },
+        { "item_id": "planning_participants", "operator": "includes", "value": "PO" },
+        { "item_id": "planning_participants", "operator": "includes", "value": "SM" },
+        { "item_id": "planning_participants", "operator": "includes", "value": "DEV" },
+        { "item_id": "planning_estimation_method", "operator": "includes", "value": "STORY_POINTS" },
+        { "item_id": "planning_has_goal", "value": true },
+        { "item_id": "planning_velocity_tracked", "value": true },
+        { "item_id": "daily_present", "value": true },
+        { "item_id": "daily_timebox", "value": true },
+        { "item_id": "daily_blocker_tracking", "value": true },
+        { "item_id": "sprint_retro", "value": true },
+        { "item_id": "retro_action_items", "value": true },
+        { "item_id": "retro_action_items_count", "operator": ">=", "value": 2 },
+        { "item_id": "retro_open_atmosphere", "value": true }
+      ],
+      "improvement_suggestions": {
+        "planning_velocity_tracked": "Začnite sistematično spremljati in upoštevati zgodovinsko zmogljivost ekipe (Velocity) pri planiranju.",
+        "retro_action_items_count": "Poskusite na retrospektivah definirati več (vsaj 2) konkretnih in merljivih akcijskih korakov za naslednji sprint.",
+        "retro_open_atmosphere": "Delajte na vzpostavitvi varnega psihološkega okolja, kjer se poudarja reševanje problemov in ne iskanje krivcev."
+      }
+    },
+    {
+      "id": 4,
+      "label": "Nivo 4 – Napreden (Advanced)",
+      "short_description": "Scrum dogodki so strukturirani, ekipa ocenjuje delo in beleži ovire.",
+      "full_description": "Planiranje vključuje celotno jedro ekipe in določa cilj sprinta. Daily Scrum poteka v časovnem okviru. Izvajajo se retrospektive z oblikovanjem vsaj ene izboljšave.",
+      "criteria": [
+        { "item_id": "planning_present", "value": true },
+        { "item_id": "planning_participants", "operator": "includes", "value": "PO" },
+        { "item_id": "planning_participants", "operator": "includes", "value": "DEV" },
+        { "item_id": "planning_has_goal", "value": true },
+        { "item_id": "daily_present", "value": true },
+        { "item_id": "daily_timebox", "value": true },
+        { "item_id": "sprint_retro", "value": true },
+        { "item_id": "retro_action_items", "value": true },
+        { "item_id": "retro_action_items_count", "operator": ">=", "value": 1 }
+      ],
+      "improvement_suggestions": {
+        "planning_participants": "Zagotovite, da sta na planiranju sprinta vedno prisotna tako Product Owner kot celotna razvojna ekipa.",
+        "planning_has_goal": "Pred začetkom vsakega sprinta obvezno definirajte jasen in skupen cilj sprinta (Sprint Goal).",
+        "daily_timebox": "Strogo omejite Daily Scrum na maksimalno 15 minut (Timebox).",
+        "retro_action_items": "Poskrbite, da bo rezultat vsake retrospektive vsaj en jasen akcijski korak, ki ga vključite v naslednji sprint."
+      }
+    },
+    {
+      "id": 3,
+      "label": "Nivo 3 – Definiran (Defined)",
+      "short_description": "Vsi osnovni Scrum sestanki so prisotni, vendar procesi še niso optimalni.",
+      "full_description": "Ekipa redno izvaja planiranje sprinta, dnevne sestanke in retrospektive, vendar lahko manjka strukturirano ocenjevanje, sledenje ciljem ali konkretni akcijski načrti.",
+      "criteria": [
+        { "item_id": "planning_present", "value": true },
+        { "item_id": "daily_present", "value": true },
+        { "item_id": "sprint_retro", "value": true }
+      ],
+      "improvement_suggestions": {
+        "planning_has_goal": "Uvedite definiranje cilja sprinta, da ekipa dobi jasen fokus namesto zgolj seznama nalog.",
+        "daily_timebox": "Uvedite timebox 15 minut za dnevne sestanke, da ostanejo kratki in učinkoviti.",
+        "retro_action_items": "Začnite zapisovati konkretne zadolžitve for izboljšanje procesov na koncu retrospektive."
+      }
+    },
+    {
+      "id": 2,
+      "label": "Nivo 2 – Začetni (Initiated)",
+      "short_description": "Ekipa uporablja le nekatere elemente agilnega dela.",
+      "full_description": "Ekipa se redno srečuje le na dnevni ravni ali pa izvaja zgolj planiranje nalog. Retrospektiv ali sistemskega izboljševanja ni.",
+      "criteria": [
+        { "item_id": "planning_present", "value": true },
+        { "item_id": "daily_present", "value": true }
+      ],
+      "improvement_suggestions": {
+        "sprint_retro": "Uvedite retrospektivo na koncu vsakega cikla, saj je to ključno orodje agilnega dela za odpravljanje težav."
+      }
+    },
+    {
+      "id": 1,
+      "label": "Nivo 1 – Ad-hoc / Kaotičen",
+      "short_description": "Procesi so nestrukturirani, delo poteka brez vnaprejšnjega planiranja.",
+      "full_description": "Nivo 1 se dodeli, kadar cevovod ne izpolnjuje pogojev nobenega višjega nivoja. Procesi so ročni ali nedefinirani.",
+      "criteria": [],
+      "improvement_suggestions": {
+        "planning_present": "Začnite z uvajanjem rednega načrtovanja dela v krajših, fiksnih časovnih obdobjih (npr. 2-tedenski sprinti).",
+        "daily_present": "Uvedite kratek dnevni sinhronizacijski sestanek (Daily Scrum) za boljšo preglednost nad delom ekipe."
+      }
+    }
+  ]
+}

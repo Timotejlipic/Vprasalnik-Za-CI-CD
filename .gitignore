@@ -46,3 +46,6 @@ cmake_install.cmake
 .idea
 .DS_Store
 Thumbs.db
+
+.claude/
+.claude
