@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api, parseEmailToName } from '../api.js';
 import ResultsPanel from './ResultsPanel.jsx';
 
+<<<<<<< HEAD
+=======
+// Helper to determine score colors
+>>>>>>> 18ff9dc (updates and fixes)
 function scoreColor(score) {
   return score < 40 ? '#f85149' : score < 75 ? '#d29922' : '#2ea043';
 }
@@ -9,17 +13,28 @@ function scoreColor(score) {
 export default function AdminDashboard({ pipelines = [], switchView }) {
   const [activeTab, setActiveTab] = useState('stats');
   
+<<<<<<< HEAD
 
+=======
+  // Data lists
+>>>>>>> 18ff9dc (updates and fixes)
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [localPipelines, setLocalPipelines] = useState([]);
   const [loading, setLoading] = useState(true);
 
+<<<<<<< HEAD
 
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('geslo123');
   const [newUserRole, setNewUserRole] = useState('user');
+=======
+  // Form states
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('geslo123');
+  const [newUserRole, setNewUserRole] = useState('evaluator');
+>>>>>>> 18ff9dc (updates and fixes)
   const [createdUserInfo, setCreatedUserInfo] = useState(null);
   const [userError, setUserError] = useState('');
 
@@ -28,21 +43,35 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   const [newGroupRepos, setNewGroupRepos] = useState('');
   const [groupError, setGroupError] = useState('');
   const [groupSuccess, setGroupSuccess] = useState('');
+<<<<<<< HEAD
 
 
+=======
+  const [groupInvites, setGroupInvites] = useState([]); // per-member access links generated after assignment
+
+  // Results detail modal
+>>>>>>> 18ff9dc (updates and fixes)
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
 
+<<<<<<< HEAD
 
+=======
+  // Sync prop changes
+>>>>>>> 18ff9dc (updates and fixes)
   useEffect(() => {
     if (pipelines) {
       setLocalPipelines(pipelines);
     }
   }, [pipelines]);
 
+<<<<<<< HEAD
 
+=======
+  // Load all dashboard data
+>>>>>>> 18ff9dc (updates and fixes)
   const loadDashboardData = async () => {
     setLoading(true);
     try {
@@ -68,6 +97,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   useEffect(() => {
     loadDashboardData();
 
+<<<<<<< HEAD
+=======
+    // Dynamically sync dashboard data across tabs
+>>>>>>> 18ff9dc (updates and fixes)
     const handleStorage = (e) => {
       if (
         e.key === 'cicdq_offline_assignments' || 
@@ -79,13 +112,32 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       }
     };
     window.addEventListener('storage', handleStorage);
+<<<<<<< HEAD
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+=======
+
+    // Periodically refresh every 30s so the admin sees completions
+    // even from users in a different browser session (e.g. Incognito)
+    const refreshInterval = setInterval(() => loadDashboardData(), 30000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(refreshInterval);
+    };
+  }, []);
+
+  // ── Auto Name Extraction from Email ──
+>>>>>>> 18ff9dc (updates and fixes)
   const extractedName = useMemo(() => {
     return parseEmailToName(newUserEmail);
   }, [newUserEmail]);
 
+<<<<<<< HEAD
+=======
+  // Handle user creation
+>>>>>>> 18ff9dc (updates and fixes)
   const handleCreateUser = async () => {
     setUserError('');
     setCreatedUserInfo(null);
@@ -109,8 +161,15 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         role: newUserRole
       });
       
+<<<<<<< HEAD
       setUsers(prev => [...prev, created]);
       
+=======
+      // Update users list
+      setUsers(prev => [...prev, created]);
+      
+      // Create invitation link
+>>>>>>> 18ff9dc (updates and fixes)
       const directLink = `${window.location.origin}${window.location.pathname}?invite_email=${encodeURIComponent(created.email)}`;
       const emailBody = `Pozdravljeni, ${created.name}!\n\nDodani ste bili v sistem MaturityVault za ocenjevanje CI/CD cevovodov.\n\nDo svojega profila in dodeljenih nalog lahko neposredno dostopate preko naslednje povezave:\n${directLink}\n\nUporabniško ime: ${created.username}\nGeslo za vaš račun je: ${newUserPassword}\n\nLep pozdrav,\nVaš Administrator`;
       
@@ -120,6 +179,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         emailBody
       });
       
+<<<<<<< HEAD
+=======
+      // Reset input fields
+>>>>>>> 18ff9dc (updates and fixes)
       setNewUserEmail('');
       setNewUserPassword('geslo123');
     } catch (err) {
@@ -127,6 +190,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Handle group creation
+>>>>>>> 18ff9dc (updates and fixes)
   const handleCreateGroup = async () => {
     setGroupError('');
     setGroupSuccess('');
@@ -143,6 +210,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       return;
     }
 
+<<<<<<< HEAD
+=======
+    // Parse repository links
+>>>>>>> 18ff9dc (updates and fixes)
     const repos = newGroupRepos
       .split('\n')
       .map(r => r.trim())
@@ -154,34 +225,94 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     }
 
     try {
+<<<<<<< HEAD
       await api.adminCreateGroup({
         name: newGroupName.trim(),
+=======
+      const groupNameValue = newGroupName.trim();
+      await api.adminCreateGroup({
+        name: groupNameValue,
+>>>>>>> 18ff9dc (updates and fixes)
         userIds: selectedGroupUsers,
         githubRepos: repos
       });
 
+<<<<<<< HEAD
       setGroupSuccess(`Skupina "${newGroupName}" je bila uspešno ustvarjena in naloge so bile dodeljene!`);
       setNewGroupName('');
       setSelectedGroupUsers([]);
       setNewGroupRepos('');
       
+=======
+      // Auto-generate the access "mail" (simulated) with a direct invite link for each member.
+      const repoLinksParam = encodeURIComponent(repos.join(','));
+      const groupsParam = encodeURIComponent(repos.map(() => groupNameValue).join(','));
+      const invites = selectedGroupUsers.map(uid => {
+        const u = users.find(x => x.id === uid);
+        if (!u) return null;
+        const directLink = `${window.location.origin}${window.location.pathname}?invite_email=${encodeURIComponent(u.email)}&repos=${repoLinksParam}&groups=${groupsParam}`;
+        const repoListText = repos.map(r => `  • ${r}`).join('\n');
+        const emailBody = `Pozdravljeni, ${u.name}!\n\nDodeljeni so vam bili naslednji GitHub repozitoriji za oceno zrelosti CI/CD cevovoda v skupini "${groupNameValue}":\n${repoListText}\n\nDo svojih dodeljenih ocenjevanj dostopate preko spodnje povezave (samo odprete):\n${directLink}\n\nLep pozdrav,\nVaš Administrator`;
+        return { user: u, directLink, emailBody };
+      }).filter(Boolean);
+      setGroupInvites(invites);
+
+      setGroupSuccess(`Skupina "${groupNameValue}" je bila uspešno ustvarjena in naloge so bile dodeljene!`);
+      setNewGroupName('');
+      setSelectedGroupUsers([]);
+      setNewGroupRepos('');
+
+      // Reload everything to update progress meters
+>>>>>>> 18ff9dc (updates and fixes)
       await loadDashboardData();
     } catch (err) {
       setGroupError(err.message || 'Napaka pri ustvarjanju skupine.');
     }
   };
 
+<<<<<<< HEAD
   const inspectAssignment = async (asgn) => {
     if (!asgn.answers) return;
     try {
       const results = await api.evaluate(asgn.answers, categories, rules);
       setEvaluationResults(results);
       setSelectedAssignment(asgn);
+=======
+  // Inspect questionnaire answers of a completed assignment.
+  // Falls back to the matched pipeline's answers when the assignment itself has none
+  // (e.g. legacy completions saved before the answers field was added).
+  const inspectAssignment = async (asgn) => {
+    let answers = asgn.answers;
+
+    if (!answers && asgn.pipelineId) {
+      const pipe = localPipelines.find(p => String(p.id) === String(asgn.pipelineId));
+      if (pipe) answers = pipe.answers;
+    }
+
+    if (!answers && asgn.repoLink) {
+      const pipe = localPipelines.find(p =>
+        p.repoLink === asgn.repoLink &&
+        (p.userId === asgn.userId || p.assessor === asgn.userName || p.assessor === asgn.userEmail?.split('@')[0])
+      );
+      if (pipe) answers = pipe.answers;
+    }
+
+    if (!answers) return;
+
+    try {
+      const results = await api.evaluate(answers, categories, rules);
+      setEvaluationResults(results);
+      setSelectedAssignment({ ...asgn, answers });
+>>>>>>> 18ff9dc (updates and fixes)
     } catch (err) {
       alert('Napaka pri izračunu zrelosti: ' + err.message);
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Helper to normalize repository URLs for robust matching
+>>>>>>> 18ff9dc (updates and fixes)
   const normalizeRepoUrl = (url) => {
     if (!url) return '';
     let clean = url.trim().toLowerCase();
@@ -191,17 +322,26 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     return clean;
   };
 
+<<<<<<< HEAD
+=======
+  // Helper to normalize names/emails for accent, casing, space, and dot insensitivity
+>>>>>>> 18ff9dc (updates and fixes)
   const normalizeName = (str) => {
     if (!str) return '';
     return str
       .toLowerCase()
       .normalize("NFD")
+<<<<<<< HEAD
       .replace(/[\u0300-\u036f]/g, "")
+=======
+      .replace(/[\u0300-\u036f]/g, "") // removes accents/diacritics
+>>>>>>> 18ff9dc (updates and fixes)
       .replace(/š/g, 's')
       .replace(/ž/g, 'z')
       .replace(/č/g, 'c')
       .replace(/ć/g, 'c')
       .replace(/đ/g, 'd')
+<<<<<<< HEAD
       .replace(/[^a-z0-9]/g, ''); 
   };
 
@@ -213,6 +353,22 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       const enrichedAsgns = userAsgns.map(asgn => {
         if (asgn.status === 'completed') return asgn;
         
+=======
+      .replace(/[^a-z0-9]/g, ''); // removes spaces, dots, hyphens
+  };
+
+  // ── Calculate Progress Metrics for Users ──
+  const userProgressStats = useMemo(() => {
+    const standardUsers = users.filter(u => u.role === 'evaluator');
+    return standardUsers.map(u => {
+      const userAsgns = assignments.filter(a => a.userId === u.id);
+      
+      // Enrich assignments with global pipelines data dynamically
+      const enrichedAsgns = userAsgns.map(asgn => {
+        if (asgn.status === 'completed') return asgn;
+        
+        // Match by repoLink and assessor name/email/ID (case-insensitive & accent/special char robust)
+>>>>>>> 18ff9dc (updates and fixes)
         const matchedPipe = localPipelines.find(p => 
           normalizeRepoUrl(p.repoLink) === normalizeRepoUrl(asgn.repoLink) && 
           (normalizeName(p.assessor) === normalizeName(asgn.userName) || 
@@ -248,9 +404,17 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     }).sort((a, b) => b.pct - a.pct || a.user.name.localeCompare(b.user.name));
   }, [users, assignments, localPipelines]);
 
+<<<<<<< HEAD
   const repoProgressStats = useMemo(() => {
     const reposMap = {};
     
+=======
+  // ── Calculate Progress Metrics for Repositories ──
+  const repoProgressStats = useMemo(() => {
+    const reposMap = {};
+    
+    // Enrich globally
+>>>>>>> 18ff9dc (updates and fixes)
     const enrichedAssignments = assignments.map(asgn => {
       if (asgn.status === 'completed') return asgn;
       
@@ -318,7 +482,35 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
 
   return (
     <div>
+<<<<<<< HEAD
       <h2 className="page-title">Admin Nadzorna Plošča</h2>
+=======
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Admin Nadzorna Plošča</h2>
+        <button
+          onClick={loadDashboardData}
+          title="Osveži podatke (samodejno vsakih 30s)"
+          style={{
+            background: 'rgba(99,102,241,0.15)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            borderRadius: '8px',
+            color: 'var(--accent-color)',
+            cursor: 'pointer',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.25)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.15)'}
+        >
+          🔄 Osveži
+        </button>
+      </div>
+>>>>>>> 18ff9dc (updates and fixes)
 
       {/* Modern Tabs */}
       <div style={{
@@ -371,7 +563,11 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               </h3>
               {userProgressStats.length === 0 ? (
                 <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+<<<<<<< HEAD
                   Ni registriranih uporabnikov z vlogo "user".
+=======
+                  Ni registriranih ocenjevalcev. Ustvarite jih v zavihku "Uporabniki".
+>>>>>>> 18ff9dc (updates and fixes)
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
@@ -616,7 +812,11 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               <div className="form-group">
                 <label className="form-label">Vloga v sistemu</label>
                 <select className="form-control" value={newUserRole} onChange={e => setNewUserRole(e.target.value)}>
+<<<<<<< HEAD
                   <option value="user">Navaden uporabnik (ocenjevalec)</option>
+=======
+                  <option value="evaluator">Navaden uporabnik (ocenjevalec)</option>
+>>>>>>> 18ff9dc (updates and fixes)
                   <option value="admin">Sistemski Administrator</option>
                 </select>
               </div>
@@ -743,7 +943,11 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                       </div>
 
                       {/* Add new member form */}
+<<<<<<< HEAD
                       {users.filter(u => u.role === 'user' && !group.userIds.includes(u.id)).length > 0 && (
+=======
+                      {users.filter(u => u.role === 'evaluator' && !group.userIds.includes(u.id)).length > 0 && (
+>>>>>>> 18ff9dc (updates and fixes)
                         <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--panel-border)', display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Dodaj novega člana:</span>
                           <select 
@@ -753,7 +957,11 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                           >
                             <option value="">-- Izberi uporabnika --</option>
                             {users
+<<<<<<< HEAD
                               .filter(u => u.role === 'user' && !group.userIds.includes(u.id))
+=======
+                              .filter(u => u.role === 'evaluator' && !group.userIds.includes(u.id))
+>>>>>>> 18ff9dc (updates and fixes)
                               .map(u => (
                                 <option key={u.id} value={u.id}>{u.name}</option>
                               ))
@@ -814,12 +1022,20 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                   padding: '8px', 
                   background: 'rgba(0,0,0,0.15)' 
                 }}>
+<<<<<<< HEAD
                   {users.filter(u => u.role === 'user').length === 0 ? (
+=======
+                  {users.filter(u => u.role === 'evaluator').length === 0 ? (
+>>>>>>> 18ff9dc (updates and fixes)
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', padding: '10px', textAlign: 'center' }}>
                       Ni na voljo navadnih uporabnikov. Ustvarite jih v zavihku "Uporabniki".
                     </div>
                   ) : (
+<<<<<<< HEAD
                     users.filter(u => u.role === 'user').map(u => (
+=======
+                    users.filter(u => u.role === 'evaluator').map(u => (
+>>>>>>> 18ff9dc (updates and fixes)
                       <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer', fontSize: '0.85rem' }}>
                         <input
                           type="checkbox"
@@ -877,6 +1093,47 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 🚀 Ustvari skupino & dodeli ocenjevanja
               </button>
             </div>
+<<<<<<< HEAD
+=======
+
+            {/* Auto-generated access "mail" per member (simulated send) */}
+            {groupInvites.length > 0 && (
+              <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(46,160,67,0.08)', border: '1px solid rgba(46,160,67,0.25)', borderRadius: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#2ea043', fontWeight: 700, marginBottom: '6px' }}>
+                  ✉ Dostopne povezave so pripravljene ({groupInvites.length})
+                </h4>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.4' }}>
+                  Ker nimamo pravega e-poštnega strežnika, je pošiljanje <strong>simulirano</strong>. Vsakemu uporabniku kopirajte spodnjo povezavo ali e-sporočilo — ob odprtju se samodejno prijavi in vidi dodeljene repozitorije.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {groupInvites.map(inv => (
+                    <div key={inv.user.id} style={{ background: 'var(--bg-color)', border: '1px solid var(--panel-border)', borderRadius: '6px', padding: '10px' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        👤 {inv.user.name} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>· {inv.user.email}</span>
+                      </div>
+                      <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', wordBreak: 'break-all', color: 'var(--accent-color)', marginBottom: '8px' }}>
+                        {inv.directLink}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn-accent" style={{ flex: 1, fontSize: '0.75rem', padding: '5px' }} onClick={() => {
+                          navigator.clipboard?.writeText(inv.directLink);
+                          alert(`Povezava za ${inv.user.name} kopirana!`);
+                        }}>
+                          ⎘ Kopiraj povezavo
+                        </button>
+                        <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.75rem', padding: '5px' }} onClick={() => {
+                          navigator.clipboard?.writeText(inv.emailBody);
+                          alert(`E-sporočilo za ${inv.user.name} kopirano!`);
+                        }}>
+                          ✉ Kopiraj e-sporočilo
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+>>>>>>> 18ff9dc (updates and fixes)
           </div>
         </div>
       )}

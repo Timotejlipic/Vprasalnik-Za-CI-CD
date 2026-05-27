@@ -8,6 +8,10 @@ import clientMaturityRules2 from '../maturity_rules2.json';
 
 const API_BASE = 'http://localhost:3002';
 
+<<<<<<< HEAD
+=======
+// Local storage keys for offline mock database
+>>>>>>> 18ff9dc (updates and fixes)
 const KEYS = {
   PIPELINES: 'cicdq_offline_pipelines',
   CATEGORIES: 'cicdq_offline_categories',
@@ -21,6 +25,10 @@ const KEYS = {
   ASSIGNMENTS: 'cicdq_offline_assignments'
 };
 
+<<<<<<< HEAD
+=======
+// Parser to extract first and last name from Gmail address
+>>>>>>> 18ff9dc (updates and fixes)
 export function parseEmailToName(email) {
   if (!email) return '';
   const firstPart = email.split('@')[0];
@@ -37,6 +45,10 @@ export function parseEmailToName(email) {
   }).join(' ');
 }
 
+<<<<<<< HEAD
+=======
+// Initialize offline mock database in localStorage if empty
+>>>>>>> 18ff9dc (updates and fixes)
 function initOfflineDb() {
   if (!localStorage.getItem(KEYS.PIPELINES)) {
     localStorage.setItem(KEYS.PIPELINES, JSON.stringify(mockPipelines.map(p => ({ ...p, versions: p.versions || [] }))));
@@ -50,7 +62,11 @@ function initOfflineDb() {
   if (!localStorage.getItem(KEYS.USERS_DB)) {
     localStorage.setItem(KEYS.USERS_DB, JSON.stringify([
       { id: 'u_offline_admin', username: 'admin', role: 'admin', email: 'admin@admin.com', name: 'Sistemski Administrator', password: 'password' },
+<<<<<<< HEAD
       { id: 'u_user_timotej', username: 'Timotej Lipič', role: 'user', email: 'timotej.lipic@student.um.si', name: 'Timotej Lipič', password: 'password' }
+=======
+      { id: 'u_user_timotej', username: 'Timotej Lipič', role: 'admin', email: 'timotej.lipic@student.um.si', name: 'Timotej Lipič', password: 'password' }
+>>>>>>> 18ff9dc (updates and fixes)
     ]));
   }
   if (!localStorage.getItem(KEYS.GROUPS)) {
@@ -62,6 +78,18 @@ function initOfflineDb() {
 }
 initOfflineDb();
 
+<<<<<<< HEAD
+=======
+// Returns true when the current user is an offline/invite-only account whose
+// ID is not a real PostgreSQL integer — we must never send their requests to
+// the backend because the FK constraint on created_by_user_id would reject them.
+function isOfflineUser() {
+  const token = localStorage.getItem('cicdq_token') || '';
+  return token.startsWith('mock_jwt_token_offline_') || token.startsWith('mock_jwt_token_');
+}
+
+// Helper to get authorization headers
+>>>>>>> 18ff9dc (updates and fixes)
 function getHeaders() {
   const token = localStorage.getItem(KEYS.TOKEN);
   const headers = {
@@ -76,6 +104,7 @@ function getHeaders() {
 export const api = {
   isOnline: false,
 
+<<<<<<< HEAD
   async checkHealth() {
     const token = localStorage.getItem(KEYS.TOKEN);
     const isMock = !token || token.startsWith('mock_jwt_token_offline_') || token.startsWith('mock_jwt_token_');
@@ -84,6 +113,10 @@ export const api = {
       return false;
     }
 
+=======
+  // Check backend server health
+  async checkHealth() {
+>>>>>>> 18ff9dc (updates and fixes)
     try {
       const res = await fetch(`${API_BASE}/health`, { method: 'GET', signal: AbortSignal.timeout(1500) });
       if (res.ok) {
@@ -98,6 +131,10 @@ export const api = {
     return this.isOnline;
   },
 
+<<<<<<< HEAD
+=======
+  // Auth endpoints
+>>>>>>> 18ff9dc (updates and fixes)
   async login(username, password) {
     const online = await this.checkHealth();
     if (online) {
@@ -115,6 +152,10 @@ export const api = {
       localStorage.setItem(KEYS.USER, JSON.stringify(data.user));
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback: verify with mock credentials or registered users in database
+>>>>>>> 18ff9dc (updates and fixes)
       const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
       const user = users.find(u => 
         (u.username?.toLowerCase() === username?.toLowerCase() || u.email?.toLowerCase() === username?.toLowerCase()) && 
@@ -148,6 +189,10 @@ export const api = {
       localStorage.setItem(KEYS.USER, JSON.stringify(data.user));
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       if (password.length < 6) {
         throw new Error('Geslo mora imeti vsaj 6 znakov.');
       }
@@ -155,6 +200,7 @@ export const api = {
       if (users.some(u => u.username?.toLowerCase() === username?.toLowerCase())) {
         throw new Error('Uporabniško ime že obstaja.');
       }
+<<<<<<< HEAD
       const newUser = { 
         id: 'u_offline_' + Date.now(), 
         username, 
@@ -162,6 +208,15 @@ export const api = {
         name: username, 
         email: username + '@example.com',
         password 
+=======
+      const newUser = {
+        id: 'u_offline_' + Date.now(),
+        username,
+        role: 'admin',
+        name: username,
+        email: username + '@example.com',
+        password
+>>>>>>> 18ff9dc (updates and fixes)
       };
       users.push(newUser);
       localStorage.setItem(KEYS.USERS_DB, JSON.stringify(users));
@@ -183,10 +238,18 @@ export const api = {
     return userStr ? JSON.parse(userStr) : null;
   },
 
+<<<<<<< HEAD
   async getPipelines() {
     const online = await this.checkHealth();
     const localPipes = JSON.parse(localStorage.getItem(KEYS.PIPELINES)) || [];
     if (online) {
+=======
+  // Pipelines endpoints (CRUD)
+  async getPipelines() {
+    const online = await this.checkHealth();
+    const localPipes = JSON.parse(localStorage.getItem(KEYS.PIPELINES)) || [];
+    if (online && !isOfflineUser()) {
+>>>>>>> 18ff9dc (updates and fixes)
       try {
         const res = await fetch(`${API_BASE}/api/pipelines`, {
           method: 'GET',
@@ -197,9 +260,32 @@ export const api = {
           const serverPipes = serverData.map(p => {
             const snapshotKey = `cicdq_versions_${p.id}`;
             p.versions = JSON.parse(localStorage.getItem(snapshotKey)) || [];
+<<<<<<< HEAD
             return p;
           });
           
+=======
+            
+            // Parse assessor and score from repoId (stored as "assessorName|score" in project_name column).
+            // This enables the admin dashboard to match pipelines to assignments across browser sessions.
+            if (p.repoId && p.repoId.includes('|')) {
+              const pipeIdx = p.repoId.lastIndexOf('|');
+              const extractedAssessor = p.repoId.substring(0, pipeIdx).trim();
+              const extractedScore = parseInt(p.repoId.substring(pipeIdx + 1), 10);
+              if (extractedAssessor && !p.assessor) {
+                p.assessor = extractedAssessor;
+              }
+              if (!isNaN(extractedScore) && (!p.score || p.score === 0)) {
+                p.score = extractedScore;
+              }
+              p.repoId = ''; // clear the repurposed field
+            }
+            
+            return p;
+          });
+          
+          // Merge local mock pipelines so we never lose evaluations in multi-tab/offline setups
+>>>>>>> 18ff9dc (updates and fixes)
           const merged = [...serverPipes];
           localPipes.forEach(lp => {
             if (!merged.some(sp => String(sp.id) === String(lp.id) || (sp.repoLink === lp.repoLink && sp.assessor === lp.assessor))) {
@@ -217,7 +303,11 @@ export const api = {
 
   async createPipeline(pipeline) {
     const online = await this.checkHealth();
+<<<<<<< HEAD
     if (online) {
+=======
+    if (online && !isOfflineUser()) {
+>>>>>>> 18ff9dc (updates and fixes)
       const res = await fetch(`${API_BASE}/api/pipelines`, {
         method: 'POST',
         headers: getHeaders(),
@@ -226,6 +316,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri shranjevanju cevovoda.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES));
       const newPipeline = {
         ...pipeline,
@@ -242,8 +336,14 @@ export const api = {
 
   async updatePipeline(id, pipeline, createNewVersion = false) {
     const online = await this.checkHealth();
+<<<<<<< HEAD
     if (online) {
       if (createNewVersion) {
+=======
+    if (online && !isOfflineUser()) {
+      if (createNewVersion) {
+        // Fetch old pipeline from server to create historical snapshot before updating
+>>>>>>> 18ff9dc (updates and fixes)
         try {
           const oldRes = await fetch(`${API_BASE}/api/pipelines/${id}`, {
             method: 'GET',
@@ -285,6 +385,10 @@ export const api = {
       data.versions = JSON.parse(localStorage.getItem(snapshotKey)) || [];
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES));
       const idx = pipelines.findIndex(p => p.id === id);
       if (idx > -1) {
@@ -319,7 +423,11 @@ export const api = {
 
   async deletePipeline(id) {
     const online = await this.checkHealth();
+<<<<<<< HEAD
     if (online) {
+=======
+    if (online && !isOfflineUser()) {
+>>>>>>> 18ff9dc (updates and fixes)
       const res = await fetch(`${API_BASE}/api/pipelines/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
@@ -327,6 +435,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri brisanju cevovoda.');
       return true;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES));
       const filtered = pipelines.filter(p => p.id !== id);
       localStorage.setItem(KEYS.PIPELINES, JSON.stringify(filtered));
@@ -334,6 +446,10 @@ export const api = {
     }
   },
 
+<<<<<<< HEAD
+=======
+  // Categories / Questionnaire endpoints
+>>>>>>> 18ff9dc (updates and fixes)
   async getCategories() {
     const online = await this.checkHealth();
     if (online) {
@@ -342,10 +458,18 @@ export const api = {
         headers: getHeaders()
       });
       if (!res.ok) throw new Error('Napaka pri nalaganju kategorij.');
+<<<<<<< HEAD
+=======
+      // Keep offline cache up to date
+>>>>>>> 18ff9dc (updates and fixes)
       const data = await res.json();
       localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(data));
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       return JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
     }
   },
@@ -361,6 +485,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri ustvarjanju kategorije.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const newCat = {
         id: 'cat_' + Date.now(),
@@ -385,6 +513,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri posodabljanju kategorije.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const idx = categories.findIndex(c => c.id === id);
       if (idx > -1) {
@@ -406,6 +538,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri brisanju kategorije.');
       return true;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const filtered = categories.filter(c => c.id !== id);
       localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(filtered));
@@ -424,6 +560,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri dodajanju vprašanja.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const idx = categories.findIndex(c => c.id === catId);
       if (idx > -1) {
@@ -447,6 +587,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri posodabljanju vprašanja.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const catIdx = categories.findIndex(c => c.id === catId);
       if (catIdx > -1) {
@@ -472,6 +616,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri brisanju vprašanja.');
       return true;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const categories = JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
       const catIdx = categories.findIndex(c => c.id === catId);
       if (catIdx > -1) {
@@ -483,6 +631,10 @@ export const api = {
     }
   },
 
+<<<<<<< HEAD
+=======
+  // Questionnaire versions endpoints
+>>>>>>> 18ff9dc (updates and fixes)
   async getQuestionnaireVersions() {
     const online = await this.checkHealth();
     if (online) {
@@ -500,8 +652,15 @@ export const api = {
         console.warn('Napaka pri nalaganju verzij vprašalnika:', err);
       }
     }
+<<<<<<< HEAD
     const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
     if (cached) return JSON.parse(cached);
+=======
+    // Offline fallback
+    const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
+    if (cached) return JSON.parse(cached);
+    // Default seed: two built-in versions
+>>>>>>> 18ff9dc (updates and fixes)
     const defaults = [
       {
         version: '1.0',
@@ -533,6 +692,10 @@ export const api = {
         console.warn('Napaka pri nalaganju verzije vprašalnika:', err);
       }
     }
+<<<<<<< HEAD
+=======
+    // Offline fallback: find in cached versions
+>>>>>>> 18ff9dc (updates and fixes)
     const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
     if (cached) {
       const versions = JSON.parse(cached);
@@ -552,6 +715,10 @@ export const api = {
         });
         if (res.ok) {
           const data = await res.json();
+<<<<<<< HEAD
+=======
+          // Also refresh versions cache
+>>>>>>> 18ff9dc (updates and fixes)
           await this.getQuestionnaireVersions();
           return data;
         }
@@ -559,6 +726,10 @@ export const api = {
         console.warn('Napaka pri shranjevanju vprašalnika:', err);
       }
     }
+<<<<<<< HEAD
+=======
+    // Offline fallback: upsert into cached versions
+>>>>>>> 18ff9dc (updates and fixes)
     const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
     const versions = cached ? JSON.parse(cached) : [];
     const idx = versions.findIndex(v => v.version === questionnaire.version);
@@ -571,6 +742,10 @@ export const api = {
     return questionnaire;
   },
 
+<<<<<<< HEAD
+=======
+  // Rules endpoints
+>>>>>>> 18ff9dc (updates and fixes)
   async getRules() {
     const online = await this.checkHealth();
     if (online) {
@@ -583,6 +758,10 @@ export const api = {
       localStorage.setItem(KEYS.RULES, JSON.stringify(data));
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       return JSON.parse(localStorage.getItem(KEYS.RULES));
     }
   },
@@ -605,6 +784,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri posodabljanju pravila.');
       return await res.json();
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const rules = JSON.parse(localStorage.getItem(KEYS.RULES));
       const idx = rules.findIndex(r => (r.level !== undefined ? r.level : r.id) === level);
       if (idx > -1) {
@@ -637,6 +820,10 @@ export const api = {
       localStorage.setItem(KEYS.RULES, JSON.stringify(data));
       return data;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       localStorage.setItem(KEYS.RULES, JSON.stringify(rules));
       return rules;
     }
@@ -652,6 +839,10 @@ export const api = {
       if (!res.ok) throw new Error('Napaka pri brisanju pravila.');
       return true;
     } else {
+<<<<<<< HEAD
+=======
+      // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
       const rules = JSON.parse(localStorage.getItem(KEYS.RULES));
       const filtered = rules.filter(r => (r.level !== undefined ? r.level : r.id) !== level);
       localStorage.setItem(KEYS.RULES, JSON.stringify(filtered));
@@ -659,6 +850,10 @@ export const api = {
     }
   },
 
+<<<<<<< HEAD
+=======
+  // Rules versions endpoints
+>>>>>>> 18ff9dc (updates and fixes)
   async getRulesVersions() {
     const online = await this.checkHealth();
     if (online) {
@@ -676,9 +871,17 @@ export const api = {
         console.warn('Napaka pri nalaganju verzij pravil:', err);
       }
     }
+<<<<<<< HEAD
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
     if (cached) return JSON.parse(cached);
 
+=======
+    // Offline fallback
+    const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
+    if (cached) return JSON.parse(cached);
+
+    // Default seed: two built-in versions matching the questionnaire versions
+>>>>>>> 18ff9dc (updates and fixes)
     const defaults = [
       {
         version: '1.0',
@@ -710,6 +913,10 @@ export const api = {
         console.warn('Napaka pri nalaganju verzije pravil:', err);
       }
     }
+<<<<<<< HEAD
+=======
+    // Offline fallback: find in cached versions
+>>>>>>> 18ff9dc (updates and fixes)
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
     if (cached) {
       const versions = JSON.parse(cached);
@@ -736,6 +943,10 @@ export const api = {
         console.warn('Napaka pri shranjevanju verzije pravil:', err);
       }
     }
+<<<<<<< HEAD
+=======
+    // Offline fallback: upsert into cached versions
+>>>>>>> 18ff9dc (updates and fixes)
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
     const versions = cached ? JSON.parse(cached) : [];
     const idx = versions.findIndex(v => v.version === rulesVersion.version);
@@ -764,6 +975,10 @@ export const api = {
         console.warn('Napaka pri brisanju verzije pravil:', err);
       }
     }
+<<<<<<< HEAD
+=======
+    // Offline fallback
+>>>>>>> 18ff9dc (updates and fixes)
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
     if (cached) {
       const versions = JSON.parse(cached);
@@ -774,12 +989,23 @@ export const api = {
     return false;
   },
 
+<<<<<<< HEAD
   async evaluate(answers, customCategories = null, customRules = null) {
+=======
+  // Dynamic evaluation using backend server or offline fallback logic
+  async evaluate(answers, customCategories = null, customRules = null) {
+    // Always compute evaluation locally to bypass C++ backend's lack of support for complex maturity criteria.
+    // This keeps the frontend JS engine as the single source of truth for both standard and custom rulesets.
+>>>>>>> 18ff9dc (updates and fixes)
     const cats = customCategories || JSON.parse(localStorage.getItem(KEYS.CATEGORIES));
     const rls = customRules || JSON.parse(localStorage.getItem(KEYS.RULES));
     return evaluateAssessment(answers, cats, rls);
   },
 
+<<<<<<< HEAD
+=======
+  // Admin and Assignment Methods
+>>>>>>> 18ff9dc (updates and fixes)
   async adminGetUsers() {
     return JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
   },
@@ -790,13 +1016,23 @@ export const api = {
       throw new Error('Uporabnik s tem e-poštnim naslovom že obstaja.');
     }
     const name = parseEmailToName(email);
+<<<<<<< HEAD
+=======
+    // Admin-created users are invite-only evaluators — always role:'evaluator'
+>>>>>>> 18ff9dc (updates and fixes)
     const newUser = {
       id: 'u_' + Date.now(),
       email,
       name,
+<<<<<<< HEAD
       username: name, 
       password,
       role
+=======
+      username: name,
+      password,
+      role: 'evaluator'
+>>>>>>> 18ff9dc (updates and fixes)
     };
     users.push(newUser);
     localStorage.setItem(KEYS.USERS_DB, JSON.stringify(users));
@@ -819,6 +1055,10 @@ export const api = {
     groups.push(newGroup);
     localStorage.setItem(KEYS.GROUPS, JSON.stringify(groups));
 
+<<<<<<< HEAD
+=======
+    // Automatically create assignments!
+>>>>>>> 18ff9dc (updates and fixes)
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
     const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
     
@@ -836,7 +1076,11 @@ export const api = {
           repoName,
           groupId: newGroup.id,
           groupName: newGroup.name,
+<<<<<<< HEAD
           status: 'pending', 
+=======
+          status: 'pending', // 'pending' | 'completed'
+>>>>>>> 18ff9dc (updates and fixes)
           score: null,
           level: null,
           pipelineId: null,
@@ -860,12 +1104,20 @@ export const api = {
     group.userIds.push(userId);
     localStorage.setItem(KEYS.GROUPS, JSON.stringify(groups));
 
+<<<<<<< HEAD
+=======
+    // Automatically create assignments for this new member for all group repos!
+>>>>>>> 18ff9dc (updates and fixes)
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
     const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
     const u = users.find(x => x.id === userId);
     
     if (u) {
       group.githubRepos.forEach(repoLink => {
+<<<<<<< HEAD
+=======
+        // Check if assignment already exists
+>>>>>>> 18ff9dc (updates and fixes)
         const exists = assignments.some(a => a.userId === userId && a.repoLink === repoLink);
         if (!exists) {
           const repoName = extractRepoName(repoLink);
@@ -878,7 +1130,11 @@ export const api = {
             repoName,
             groupId: group.id,
             groupName: group.name,
+<<<<<<< HEAD
             status: 'pending', 
+=======
+            status: 'pending', // 'pending' | 'completed'
+>>>>>>> 18ff9dc (updates and fixes)
             score: null,
             level: null,
             pipelineId: null,
@@ -903,7 +1159,26 @@ export const api = {
 
   async completeAssignment(assignmentId, score, level, pipelineId, answers) {
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+<<<<<<< HEAD
     const idx = assignments.findIndex(a => a.id === assignmentId);
+=======
+    let idx = assignments.findIndex(a => a.id === assignmentId);
+
+    // Fallback: if the ID doesn't match (can happen when invite URL re-seeds assignments),
+    // find a pending assignment for the same user + repoLink via the saved pipeline.
+    if (idx === -1 && pipelineId) {
+      const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES)) || [];
+      const pipe = pipelines.find(p => String(p.id) === String(pipelineId));
+      if (pipe) {
+        idx = assignments.findIndex(a =>
+          a.userId === pipe.userId &&
+          a.repoLink === pipe.repoLink &&
+          a.status !== 'completed'
+        );
+      }
+    }
+
+>>>>>>> 18ff9dc (updates and fixes)
     if (idx > -1) {
       assignments[idx].status = 'completed';
       assignments[idx].score = score;
@@ -917,6 +1192,10 @@ export const api = {
     throw new Error('Dodelitev ni bila najdena.');
   },
 
+<<<<<<< HEAD
+=======
+  // Compatibility hooks for older AdminDashboard.jsx tasks
+>>>>>>> 18ff9dc (updates and fixes)
   async adminGetTasks() {
     return this.adminGetAssignments();
   },

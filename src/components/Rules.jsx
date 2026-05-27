@@ -8,8 +8,15 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
   const [fullDescription, setFullDescription] = useState(levelObj?.full_description || '');
   const [minScore, setMinScore] = useState(levelObj?.minScore !== undefined ? levelObj.minScore : '');
   
+<<<<<<< HEAD
   const [editorMode, setEditorMode] = useState('visual'); 
 
+=======
+  // Choose visual as the default editor view
+  const [editorMode, setEditorMode] = useState('visual'); // 'visual' | 'json'
+
+  // Extract all questions recursively from categories
+>>>>>>> 18ff9dc (updates and fixes)
   const allQuestions = [];
   const extractQuestionsRecursively = (items, catTitle) => {
     if (!Array.isArray(items)) return;
@@ -31,12 +38,20 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     });
   }
 
+<<<<<<< HEAD
+=======
+  // Group questions by category for `<optgroup>`
+>>>>>>> 18ff9dc (updates and fixes)
   const groupedQuestions = allQuestions.reduce((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
     acc[q.category].push(q);
     return acc;
   }, {});
 
+<<<<<<< HEAD
+=======
+  // Initialize visual criteria as a structured array
+>>>>>>> 18ff9dc (updates and fixes)
   const [visualCriteria, setVisualCriteria] = useState(() => {
     return Array.isArray(levelObj?.criteria) ? levelObj.criteria.map(c => ({
       item_id: c.item_id || '',
@@ -46,6 +61,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     })) : [];
   });
 
+<<<<<<< HEAD
+=======
+  // Initialize visual suggestions as a structured array
+>>>>>>> 18ff9dc (updates and fixes)
   const [visualSuggestions, setVisualSuggestions] = useState(() => {
     if (levelObj?.improvement_suggestions && typeof levelObj.improvement_suggestions === 'object' && !Array.isArray(levelObj.improvement_suggestions)) {
       return Object.entries(levelObj.improvement_suggestions).map(([key, val]) => ({
@@ -57,6 +76,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     return [];
   });
 
+<<<<<<< HEAD
+=======
+  // JSON strings as fallback/alternative
+>>>>>>> 18ff9dc (updates and fixes)
   const [criteriaStr, setCriteriaStr] = useState(
     levelObj?.criteria ? JSON.stringify(levelObj.criteria, null, 2) : '[]'
   );
@@ -68,6 +91,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
 
   const handleSwitchMode = (newMode) => {
     if (newMode === 'visual') {
+<<<<<<< HEAD
+=======
+      // Parse JSON from textareas back to visual states
+>>>>>>> 18ff9dc (updates and fixes)
       try {
         const parsedCrit = JSON.parse(criteriaStr);
         if (!Array.isArray(parsedCrit)) {
@@ -103,6 +130,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
 
       setError('');
     } else {
+<<<<<<< HEAD
+=======
+      // Serialize visual states to JSON strings
+>>>>>>> 18ff9dc (updates and fixes)
       const critPayload = visualCriteria.map(c => {
         let parsedVal = c.value;
         if (c.value === 'true') parsedVal = true;
@@ -138,6 +169,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     let finalSuggestions = {};
 
     if (editorMode === 'visual') {
+<<<<<<< HEAD
+=======
+      // Construct criteria from visual list
+>>>>>>> 18ff9dc (updates and fixes)
       for (const c of visualCriteria) {
         if (!c.item_id.trim()) {
           setError('Napaka: Vsi kriteriji morajo imeti izbrano ali vpisano vprašanje.');
@@ -156,6 +191,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
         });
       }
 
+<<<<<<< HEAD
+=======
+      // Construct suggestions from visual list
+>>>>>>> 18ff9dc (updates and fixes)
       for (const s of visualSuggestions) {
         if (!s.item_id.trim()) {
           setError('Napaka: Vsa priporočila morajo imeti določen ID vprašanja.');
@@ -164,6 +203,10 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
         finalSuggestions[s.item_id.trim()] = s.text.trim();
       }
     } else {
+<<<<<<< HEAD
+=======
+      // Validate and parse JSON from textareas
+>>>>>>> 18ff9dc (updates and fixes)
       try {
         finalCriteria = JSON.parse(criteriaStr);
         if (!Array.isArray(finalCriteria)) {
@@ -191,11 +234,19 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     const payload = {
       ...levelObj,
       level: levelInt,
+<<<<<<< HEAD
       id: levelInt, 
       name: name.trim(),
       label: name.trim(), 
       description: description.trim(),
       short_description: description.trim(), 
+=======
+      id: levelInt, // keep both for compatibility
+      name: name.trim(),
+      label: name.trim(), // keep both for compatibility
+      description: description.trim(),
+      short_description: description.trim(), // keep both for compatibility
+>>>>>>> 18ff9dc (updates and fixes)
       full_description: fullDescription.trim(),
       criteria: finalCriteria,
       improvement_suggestions: finalSuggestions
@@ -640,7 +691,11 @@ export default function Rules({
   categories
 }) {
   const isAdmin = userRole === 'admin';
+<<<<<<< HEAD
   const [editingLevel, setEditingLevel] = useState(null); 
+=======
+  const [editingLevel, setEditingLevel] = useState(null); // rules object or {} for new
+>>>>>>> 18ff9dc (updates and fixes)
   const [localRulesVersion, setLocalRulesVersion] = useState(selectedRulesVersion || '');
   const [openLevels, setOpenLevels] = useState({});
 
@@ -712,6 +767,10 @@ export default function Rules({
               };
             });
 
+<<<<<<< HEAD
+=======
+            // Version support
+>>>>>>> 18ff9dc (updates and fixes)
             const version = data.version ? String(data.version) : `import_${Date.now()}`;
             const rulesVersionObj = {
               version,
@@ -720,6 +779,10 @@ export default function Rules({
               levels: normalizedRules
             };
 
+<<<<<<< HEAD
+=======
+            // Save versioned rules
+>>>>>>> 18ff9dc (updates and fixes)
             api.saveRulesVersion(rulesVersionObj)
               .then(() => {
                 setRules(normalizedRules);
@@ -727,6 +790,10 @@ export default function Rules({
                 if (setSelectedRulesVersion) setSelectedRulesVersion(version);
                 if (loadRulesForVersion) loadRulesForVersion(version);
                 
+<<<<<<< HEAD
+=======
+                // Refresh rulesVersions list in App
+>>>>>>> 18ff9dc (updates and fixes)
                 if (api.getRulesVersions && setRulesVersions) {
                   api.getRulesVersions().then(versions => {
                     setRulesVersions(versions || []);
@@ -753,6 +820,10 @@ export default function Rules({
     const hasCustomCriteria = rules && rules.some(r => Array.isArray(r.criteria));
     let exportData;
 
+<<<<<<< HEAD
+=======
+    // Find current rules version object for metadata if available
+>>>>>>> 18ff9dc (updates and fixes)
     const currentVersionObj = rulesVersions.find(v => v.version === localRulesVersion);
     const ver = localRulesVersion || "1.0";
     const title = currentVersionObj?.title || "CI/CD Pipeline Maturity Model – Pravila za določanje nivoja zrelosti";
@@ -823,6 +894,11 @@ export default function Rules({
       }
 
       if (localRulesVersion) {
+<<<<<<< HEAD
+=======
+        // If a version is active, find the corresponding version in rulesVersions,
+        // update its nested `levels` array, and save it.
+>>>>>>> 18ff9dc (updates and fixes)
         const currentVersionObj = rulesVersions.find(v => v.version === localRulesVersion);
         if (currentVersionObj) {
           const updatedVersionObj = {
@@ -831,6 +907,10 @@ export default function Rules({
           };
           await api.saveRulesVersion(updatedVersionObj);
           
+<<<<<<< HEAD
+=======
+          // Refresh rulesVersions list
+>>>>>>> 18ff9dc (updates and fixes)
           if (setRulesVersions) {
             const versions = await api.getRulesVersions();
             setRulesVersions(versions || []);
@@ -838,6 +918,10 @@ export default function Rules({
         }
       }
 
+<<<<<<< HEAD
+=======
+      // Legacy fallback
+>>>>>>> 18ff9dc (updates and fixes)
       if (exists) {
         await api.updateRule(
           normalizedLevel.level,
@@ -868,7 +952,13 @@ export default function Rules({
         return rId !== levelId;
       });
 
+<<<<<<< HEAD
       if (localRulesVersion) {.
+=======
+      if (localRulesVersion) {
+        // If a version is active, find corresponding version in rulesVersions,
+        // delete from its nested `levels` array, and save it.
+>>>>>>> 18ff9dc (updates and fixes)
         const currentVersionObj = rulesVersions.find(v => v.version === localRulesVersion);
         if (currentVersionObj) {
           const updatedVersionObj = {
@@ -877,6 +967,10 @@ export default function Rules({
           };
           await api.saveRulesVersion(updatedVersionObj);
           
+<<<<<<< HEAD
+=======
+          // Refresh rulesVersions list
+>>>>>>> 18ff9dc (updates and fixes)
           if (setRulesVersions) {
             const versions = await api.getRulesVersions();
             setRulesVersions(versions || []);
@@ -884,6 +978,10 @@ export default function Rules({
         }
       }
 
+<<<<<<< HEAD
+=======
+      // Legacy fallback
+>>>>>>> 18ff9dc (updates and fixes)
       await api.deleteRule(levelId);
 
       setRules(updatedRulesList);

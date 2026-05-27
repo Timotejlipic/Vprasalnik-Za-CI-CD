@@ -14,6 +14,10 @@ import { api } from './api.js';
 import clientQuestionnaireConfig from '../questionnaire_config.json';
 import clientMaturityRules from '../maturity_rules.json';
 
+<<<<<<< HEAD
+=======
+// Normalise super-category label from a section id
+>>>>>>> 18ff9dc (updates and fixes)
 function getSuperCategory(sectionId) {
   const id = (sectionId || '').toLowerCase();
   if (id.includes('build') || id.includes('unit_test') || id.includes('sc_build') || id.includes('sc_test')) {
@@ -25,12 +29,25 @@ function getSuperCategory(sectionId) {
   return 'Ostalo';
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * Converts a questionnaire's sections array into the flat categories array
+ * used by the UI.  Handles TWO backend formats:
+ *   1. questionnaire_config.json  →  section.items  (nested items directly in section)
+ *   2. backend seeded format      →  section.categories  (array of category objects)
+ */
+>>>>>>> 18ff9dc (updates and fixes)
 function convertConfigSectionsToCategories(sections) {
   if (!sections || !Array.isArray(sections)) return [];
   const result = [];
   sections.forEach(section => {
     const superCategory = getSuperCategory(section.id);
     if (section.categories && Array.isArray(section.categories)) {
+<<<<<<< HEAD
+=======
+      // Backend seeded format: each element in categories → one UI category
+>>>>>>> 18ff9dc (updates and fixes)
       section.categories.forEach(cat => {
         result.push({
           id: cat.id || section.id,
@@ -41,6 +58,10 @@ function convertConfigSectionsToCategories(sections) {
         });
       });
     } else {
+<<<<<<< HEAD
+=======
+      // questionnaire_config.json format: section IS the category
+>>>>>>> 18ff9dc (updates and fixes)
       result.push({
         id: section.id,
         title: section.label || section.id,
@@ -62,31 +83,62 @@ export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [apiOnline, setApiOnline] = useState(false);
 
+<<<<<<< HEAD
+=======
+  // States initialized from offline mock database/cache initially
+>>>>>>> 18ff9dc (updates and fixes)
   const [pipelines, setPipelines] = useState([]);
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
 
+<<<<<<< HEAD
   const [questionnaires, setQuestionnaires] = useState([]); 
   const [selectedVersion, setSelectedVersion] = useState(null); 
 
   const [rulesVersions, setRulesVersions] = useState([]); 
   const [selectedRulesVersion, setSelectedRulesVersion] = useState(null); 
+=======
+  // Questionnaire versioning
+  const [questionnaires, setQuestionnaires] = useState([]); // all available versions
+  const [selectedVersion, setSelectedVersion] = useState(null); // currently active version string
+
+  // Rules versioning
+  const [rulesVersions, setRulesVersions] = useState([]); // all available rules versions
+  const [selectedRulesVersion, setSelectedRulesVersion] = useState(null); // currently active rules version string
+>>>>>>> 18ff9dc (updates and fixes)
 
   const [currentAssessment, setCurrentAssessment] = useState({});
   const [currentAssessmentId, setCurrentAssessmentId] = useState(null);
   const [currentAssessmentVersion, setCurrentAssessmentVersion] = useState(null);
+<<<<<<< HEAD
   const [viewType, setViewType] = useState('collapsible'); 
   const [assessmentMeta, setAssessmentMeta] = useState(null); 
 
+=======
+  const [viewType, setViewType] = useState('collapsible'); // 'collapsible' | 'tabs'
+  const [assessmentMeta, setAssessmentMeta] = useState(null); // { name, repoLink } shown in sidebar
+
+  // Versioning & Read-Only states
+>>>>>>> 18ff9dc (updates and fixes)
   const [createNewVersionMode, setCreateNewVersionMode] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [historicVersion, setHistoricVersion] = useState(null);
 
 
+<<<<<<< HEAD
   useEffect(() => {
     async function initApp() {
       let savedUser = api.getCurrentUser();
 
+=======
+  // Check health and load initial data
+  useEffect(() => {
+    async function initApp() {
+      // 1. Restore login session or invite URL parameter (runs instantly!)
+      let savedUser = api.getCurrentUser();
+
+      // Auto-login from invite URL parameter if present
+>>>>>>> 18ff9dc (updates and fixes)
       const params = new URLSearchParams(window.location.search);
       const inviteEmail = params.get('invite_email');
       const inviteUser = params.get('invite_user');
@@ -101,24 +153,44 @@ export default function App() {
           const urlRepos = params.get('repos') ? params.get('repos').split(',') : [];
           const urlGroups = params.get('groups') ? params.get('groups').split(',') : [];
 
+<<<<<<< HEAD
+=======
+          // Auto-create invite-only evaluator on the fly if not exists
+>>>>>>> 18ff9dc (updates and fixes)
           if (!matchedUser && inviteEmail) {
             matchedUser = await api.adminCreateUser({
               email: inviteEmail.trim(),
               password: 'geslo123',
+<<<<<<< HEAD
               role: 'user'
+=======
+              role: 'evaluator'
+>>>>>>> 18ff9dc (updates and fixes)
             });
           }
 
           if (matchedUser) {
+<<<<<<< HEAD
             if (urlRepos.length > 0) {
               const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
               
+=======
+            // Synchronize/assign repositories from the URL parameter if present!
+            if (urlRepos.length > 0) {
+              const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
+              
+              // Clear any existing pending assignments for this user to avoid duplicates or mismatch
+>>>>>>> 18ff9dc (updates and fixes)
               const nonUserOrCompletedAsgns = assignments.filter(a => !(a.userId === matchedUser.id && a.status === 'pending'));
               
               urlRepos.forEach((repoLink, index) => {
                 const groupName = urlGroups[index] || 'Skupina';
                 const exists = nonUserOrCompletedAsgns.some(a => a.userId === matchedUser.id && a.repoLink === repoLink);
                 if (!exists) {
+<<<<<<< HEAD
+=======
+                  // Helper to extract repo name
+>>>>>>> 18ff9dc (updates and fixes)
                   let repoName = repoLink;
                   try {
                     const u = new URL(repoLink);
@@ -145,6 +217,7 @@ export default function App() {
                 }
               });
               localStorage.setItem('cicdq_offline_assignments', JSON.stringify(nonUserOrCompletedAsgns));
+<<<<<<< HEAD
             } else {
               const existingAsgns = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
               const userHasAsgns = existingAsgns.some(a => a.userId === matchedUser.id);
@@ -160,6 +233,12 @@ export default function App() {
                 });
               }
             }
+=======
+            }
+            // No repos in the invite URL → the user simply sees whatever the admin has
+            // already assigned to them (matched by userId). We must NOT auto-assign demo
+            // repositories, otherwise users would see repos the admin never gave them.
+>>>>>>> 18ff9dc (updates and fixes)
 
             localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
             localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));
@@ -173,6 +252,7 @@ export default function App() {
 
       if (savedUser) {
         setUser(savedUser.username);
+<<<<<<< HEAD
         setUserRole(savedUser.role || 'user');
         setIsLoggedIn(true);
         setAppState('app');
@@ -180,17 +260,37 @@ export default function App() {
           setCurrentView('user_assessments');
         } else {
           setCurrentView('dashboard');
+=======
+        const restoredRole = savedUser.role || 'admin';
+        setUserRole(restoredRole);
+        setIsLoggedIn(true);
+        setAppState('app');
+        // Invite-only evaluators (role:'evaluator') stay on user_assessments after refresh.
+        // Everyone else lands on Nova ocena so they can start right away.
+        if (restoredRole === 'evaluator') {
+          setCurrentView('user_assessments');
+        } else {
+          setCurrentView('assessment');
+>>>>>>> 18ff9dc (updates and fixes)
         }
       } else {
         setUserRole('guest');
       }
 
+<<<<<<< HEAD
+=======
+      // 2. Check server health in the background
+>>>>>>> 18ff9dc (updates and fixes)
       let online = false;
       try {
         online = await api.checkHealth();
       } catch {}
       setApiOnline(online);
 
+<<<<<<< HEAD
+=======
+      // 3. Load rules & categories
+>>>>>>> 18ff9dc (updates and fixes)
       let rVersions = [];
       try {
         rVersions = await api.getRulesVersions();
@@ -207,6 +307,10 @@ export default function App() {
         console.error('Failed to load questionnaire versions:', err);
       }
 
+<<<<<<< HEAD
+=======
+      // Set defaults from versions
+>>>>>>> 18ff9dc (updates and fixes)
       if (rVersions && rVersions.length > 0) {
         const latestR = rVersions[rVersions.length - 1];
         setSelectedRulesVersion(latestR.version);
@@ -243,6 +347,10 @@ export default function App() {
     initApp();
   }, []);
 
+<<<<<<< HEAD
+=======
+  // Load pipelines when logged in
+>>>>>>> 18ff9dc (updates and fixes)
   useEffect(() => {
     async function loadUserPipelines() {
       try {
@@ -256,6 +364,10 @@ export default function App() {
     }
     loadUserPipelines();
 
+<<<<<<< HEAD
+=======
+    // Sync pipelines across tabs when localStorage updates
+>>>>>>> 18ff9dc (updates and fixes)
     const handleStorage = (e) => {
       if (e.key === 'cicdq_offline_pipelines') {
         loadUserPipelines();
@@ -266,16 +378,30 @@ export default function App() {
   }, [isLoggedIn, appState]);
 
 
+<<<<<<< HEAD
+=======
+  // ── Explicit: load categories for a specific version ───────────────────────
+  // Called from Builder version-dropdown, startNewAssessment, loadAssessment.
+  // NOT called automatically on state changes (avoids overriding imported data).
+>>>>>>> 18ff9dc (updates and fixes)
   function loadCategoriesForVersion(version, versionList) {
     const list = versionList || questionnaires;
     const q = list.find(v => v.version === version);
     if (!q) return;
     const cats = convertConfigSectionsToCategories(q.sections || []);
+<<<<<<< HEAD
+=======
+    // Only apply if the result actually has items (don't override with empty data)
+>>>>>>> 18ff9dc (updates and fixes)
     if (cats.some(c => c.items && c.items.length > 0)) {
       setCategories(cats);
     }
   }
 
+<<<<<<< HEAD
+=======
+  // ── Explicit: load rules for a specific version ───────────────────────
+>>>>>>> 18ff9dc (updates and fixes)
   function loadRulesForVersion(version, versionList) {
     const list = versionList || rulesVersions;
     const r = list.find(v => v.version === version);
@@ -312,12 +438,20 @@ export default function App() {
     if (p) {
       setCurrentAssessmentId(p.id);
       setCurrentAssessment({ ...p.answers });
+<<<<<<< HEAD
+=======
+      // Always load the correct categories for this version
+>>>>>>> 18ff9dc (updates and fixes)
       const v = p.version || selectedVersion;
       if (v) {
         setSelectedVersion(v);
         setCurrentAssessmentVersion(v);
         loadCategoriesForVersion(v);
       }
+<<<<<<< HEAD
+=======
+      // Load the rules for this rulesVersion
+>>>>>>> 18ff9dc (updates and fixes)
       const rv = p.rulesVersion || p.version || selectedRulesVersion;
       if (rv) {
         setSelectedRulesVersion(rv);
@@ -364,6 +498,10 @@ export default function App() {
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Called from Dashboard when user picks a version for a new assessment
+>>>>>>> 18ff9dc (updates and fixes)
   const startNewAssessment = (version, rulesVersion) => {
     resetAssessment();
     setSelectedVersion(version);
@@ -379,6 +517,10 @@ export default function App() {
     switchView('assessment', true);
   };
 
+<<<<<<< HEAD
+=======
+  // Refresh questionnaire versions list (called from Builder after import)
+>>>>>>> 18ff9dc (updates and fixes)
   const refreshQuestionnaires = async () => {
     try {
       const versions = await api.getQuestionnaireVersions();
@@ -449,11 +591,30 @@ export default function App() {
   };
 
   const renderView = () => {
+<<<<<<< HEAD
     if ((currentView === 'builder' || currentView === 'rules') && userRole !== 'admin' && userRole !== 'user') {
+=======
+    if ((currentView === 'builder' || currentView === 'rules') && userRole !== 'admin' && userRole !== 'user' && userRole !== 'evaluator') {
+>>>>>>> 18ff9dc (updates and fixes)
       setTimeout(() => setCurrentView('dashboard'), 0);
       return null;
     }
 
+<<<<<<< HEAD
+=======
+    // Admin panel is admin-only
+    if (currentView === 'admin_dashboard' && userRole !== 'admin') {
+      setTimeout(() => setCurrentView('assessment'), 0);
+      return null;
+    }
+
+    // user_assessments is invite-only — only role:'evaluator' accounts may see it
+    if (currentView === 'user_assessments' && userRole !== 'evaluator') {
+      setTimeout(() => setCurrentView('assessment'), 0);
+      return null;
+    }
+
+>>>>>>> 18ff9dc (updates and fixes)
     switch (currentView) {
       case 'dashboard':
         return (
@@ -518,6 +679,10 @@ export default function App() {
               setCurrentAssessmentVersion('1.0');
               loadCategoriesForVersion('1.0');
               
+<<<<<<< HEAD
+=======
+              // Automatically extract repo name
+>>>>>>> 18ff9dc (updates and fixes)
               let repoName = repoLink;
               try {
                 const u = new URL(repoLink);
@@ -584,12 +749,17 @@ export default function App() {
   const enterAsGuest = () => {
     setUser('Gost');
     setUserRole('guest');
+<<<<<<< HEAD
+=======
+    setCurrentView('dashboard');
+>>>>>>> 18ff9dc (updates and fixes)
     setAppState('app');
   };
 
   const enterAsAdmin = (username) => {
     setUser(username);
     const currentUser = api.getCurrentUser();
+<<<<<<< HEAD
     const role = currentUser?.role || 'user';
     setUserRole(role);
     setIsLoggedIn(true);
@@ -598,6 +768,18 @@ export default function App() {
       setCurrentView('user_assessments');
     } else {
       setCurrentView('dashboard');
+=======
+    const role = currentUser?.role || 'admin';
+    setUserRole(role);
+    setIsLoggedIn(true);
+    setAppState('app');
+    // Invite-only evaluators (role:'evaluator') go to their assessments list.
+    // Everyone else (admin, regular user) lands on Nova ocena.
+    if (role === 'evaluator') {
+      setCurrentView('user_assessments');
+    } else {
+      setCurrentView('assessment');
+>>>>>>> 18ff9dc (updates and fixes)
     }
   };
 
@@ -606,6 +788,10 @@ export default function App() {
     setIsLoggedIn(false);
     setUser(null);
     setUserRole('guest');
+<<<<<<< HEAD
+=======
+    setCurrentView('dashboard');
+>>>>>>> 18ff9dc (updates and fixes)
     setAppState('landing');
   };
 

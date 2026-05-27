@@ -5,6 +5,10 @@ function parseGitHubUrl(url) {
     const match = url.match(/github\.com\/([^/\s]+)\/([^/\s#?]+)/);
     if (match) return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
   } catch {
+<<<<<<< HEAD
+=======
+    // ignore
+>>>>>>> 18ff9dc (updates and fixes)
   }
   return null;
 }
@@ -18,6 +22,10 @@ export default function GitHubYamlViewer({ repoLink = '', onFilesLoaded }) {
   const [error, setError] = useState('');
   const [loadedFor, setLoadedFor] = useState('');
 
+<<<<<<< HEAD
+=======
+  // Auto-fetch when repoLink changes and is a valid GitHub URL
+>>>>>>> 18ff9dc (updates and fixes)
   useEffect(() => {
     if (repoLink && repoLink !== loadedFor && parseGitHubUrl(repoLink)) {
       fetchYamlFiles(repoLink);

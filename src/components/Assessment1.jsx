@@ -214,6 +214,10 @@ export default function Assessment1({
     }
   }, [categories, currentAssessmentId]);
 
+<<<<<<< HEAD
+=======
+  // Assessor is automatically derived from logged-in user
+>>>>>>> 18ff9dc (updates and fixes)
   const assessor = typeof user === 'object' && user ? (user.name || user.username || '') : (user || '');
 
   const toggleDesc = (id) =>
@@ -270,6 +274,10 @@ export default function Assessment1({
       return;
     }
     try {
+<<<<<<< HEAD
+=======
+      // Fill in default values for all unanswered question items
+>>>>>>> 18ff9dc (updates and fixes)
       const finalAnswers = { ...currentAssessment };
       const flatItems = getFlatCategoriesItems(categories);
       flatItems.forEach(item => {
@@ -286,13 +294,25 @@ export default function Assessment1({
       const finalScore = res.score;
       const finalLevel = res.level;
 
+<<<<<<< HEAD
+=======
+      // Encode assessor and score into repoId so the backend stores it in project_name.
+      // This allows the admin dashboard to match pipelines to assignments even when
+      // the user is in a different browser session (e.g. Incognito vs Normal window).
+      const encodedRepoId = `${assessor}|${finalScore}`;
+
+>>>>>>> 18ff9dc (updates and fixes)
       let savedPipe = null;
       if (currentAssessmentId) {
         savedPipe = await api.updatePipeline(
           currentAssessmentId,
           {
             name,
+<<<<<<< HEAD
             repoId,
+=======
+            repoId: encodedRepoId,
+>>>>>>> 18ff9dc (updates and fixes)
             repoLink,
             assessor,
             score: finalScore,
@@ -306,7 +326,11 @@ export default function Assessment1({
       } else {
         savedPipe = await api.createPipeline({
           name,
+<<<<<<< HEAD
           repoId,
+=======
+          repoId: encodedRepoId,
+>>>>>>> 18ff9dc (updates and fixes)
           repoLink,
           assessor,
           score: finalScore,
@@ -315,6 +339,7 @@ export default function Assessment1({
           version: assessmentVersion,
           rulesVersion,
         });
+<<<<<<< HEAD
 
         if (assessmentMeta && assessmentMeta.assignmentId) {
           try {
@@ -334,6 +359,31 @@ export default function Assessment1({
       const latestPipelines = await api.getPipelines();
       setPipelines(latestPipelines);
       
+=======
+      }
+
+      // Complete the assignment regardless of whether we created or updated the pipeline.
+      // This ensures admin always sees the correct status even if the user re-opens the
+      // assessment (update path) after a previous partial save.
+      if (assessmentMeta && assessmentMeta.assignmentId) {
+        try {
+          await api.completeAssignment(
+            assessmentMeta.assignmentId,
+            finalScore,
+            finalLevel,
+            savedPipe.id,
+            finalAnswers
+          );
+        } catch (err) {
+          console.error('Failed to complete assignment:', err);
+        }
+      }
+
+      const latestPipelines = await api.getPipelines();
+      setPipelines(latestPipelines);
+
+      // Redirect standard user back to user assessments, and admins to dashboard
+>>>>>>> 18ff9dc (updates and fixes)
       if (assessmentMeta && assessmentMeta.assignmentId) {
         switchView('user_assessments');
       } else {
@@ -344,6 +394,10 @@ export default function Assessment1({
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Group categories by superCategory
+>>>>>>> 18ff9dc (updates and fixes)
   const superGroups = {};
   categories.forEach(cat => {
     const superTitle = cat.superCategory || "CI/CD Proces";
@@ -398,7 +452,11 @@ export default function Assessment1({
             {presenceItem && (
               <div 
                 style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', marginLeft: '12px', fontSize: '0.85rem', fontWeight: 500, background: 'rgba(255,255,255,0.03)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--panel-border)' }}
+<<<<<<< HEAD
                 onClick={e => e.stopPropagation()} 
+=======
+                onClick={e => e.stopPropagation()} // prepreči zlaganje/odpiranje accordion-a ob kliku na checkbox
+>>>>>>> 18ff9dc (updates and fixes)
               >
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
                   Prisoten v cevovodu:

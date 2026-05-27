@@ -3,12 +3,22 @@ import { api } from '../api.js';
 
 export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
   const [showAuth, setShowAuth] = useState(false);
+<<<<<<< HEAD
   const [authTab, setAuthTab] = useState('login'); 
 
+=======
+  const [authTab, setAuthTab] = useState('login'); // 'login' | 'register'
+
+  // Login state
+>>>>>>> 18ff9dc (updates and fixes)
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
+<<<<<<< HEAD
+=======
+  // Register state
+>>>>>>> 18ff9dc (updates and fixes)
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');

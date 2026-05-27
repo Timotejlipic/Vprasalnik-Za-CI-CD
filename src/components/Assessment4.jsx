@@ -232,6 +232,10 @@ export default function Assessment4({
     if (!isLoggedIn) { alert('Za shranjevanje se morate prijaviti.'); return; }
     if (!name) { alert('Prosimo, vnesite ime cevovoda.'); return; }
     try {
+<<<<<<< HEAD
+=======
+      // Fill in default values for all unanswered question items
+>>>>>>> 18ff9dc (updates and fixes)
       const finalAnswers = { ...currentAssessment };
       const flatItems = getFlatCategoriesItems(categories);
       flatItems.forEach(item => {
@@ -248,13 +252,25 @@ export default function Assessment4({
       const finalScore = res.score;
       const finalLevel = res.level;
 
+<<<<<<< HEAD
+=======
+      // Encode assessor and score into repoId so the backend stores it in project_name.
+      // This allows the admin dashboard to match pipelines to assignments even when
+      // the user is in a different browser session (e.g. Incognito vs Normal window).
+      const encodedRepoId = `${assessor}|${finalScore}`;
+
+>>>>>>> 18ff9dc (updates and fixes)
       let savedPipe = null;
       if (currentAssessmentId) {
         savedPipe = await api.updatePipeline(
           currentAssessmentId,
           {
             name,
+<<<<<<< HEAD
             repoId,
+=======
+            repoId: encodedRepoId,
+>>>>>>> 18ff9dc (updates and fixes)
             repoLink,
             assessor,
             score: finalScore,
@@ -268,7 +284,11 @@ export default function Assessment4({
       } else {
         savedPipe = await api.createPipeline({
           name,
+<<<<<<< HEAD
           repoId,
+=======
+          repoId: encodedRepoId,
+>>>>>>> 18ff9dc (updates and fixes)
           repoLink,
           assessor,
           score: finalScore,
@@ -277,6 +297,7 @@ export default function Assessment4({
           version: assessmentVersion,
           rulesVersion,
         });
+<<<<<<< HEAD
 
         if (assessmentMeta && assessmentMeta.assignmentId) {
           try {
@@ -295,6 +316,29 @@ export default function Assessment4({
       const latestPipelines = await api.getPipelines();
       setPipelines(latestPipelines);
       
+=======
+      }
+
+      // Complete the assignment regardless of whether we created or updated the pipeline.
+      if (assessmentMeta && assessmentMeta.assignmentId) {
+        try {
+          await api.completeAssignment(
+            assessmentMeta.assignmentId,
+            finalScore,
+            finalLevel,
+            savedPipe.id,
+            finalAnswers
+          );
+        } catch (err) {
+          console.error('Failed to complete assignment:', err);
+        }
+      }
+
+      const latestPipelines = await api.getPipelines();
+      setPipelines(latestPipelines);
+      
+      // Redirect standard user back to user assessments, and admins to dashboard
+>>>>>>> 18ff9dc (updates and fixes)
       if (assessmentMeta && assessmentMeta.assignmentId) {
         switchView('user_assessments');
       } else {
