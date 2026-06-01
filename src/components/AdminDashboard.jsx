@@ -36,6 +36,11 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
 
+  // Progress-tracking filters (Tab 1)
+  const [statsUserFilter, setStatsUserFilter] = useState('');
+  const [statsRepoFilter, setStatsRepoFilter] = useState('');
+  const [statsDateFilter, setStatsDateFilter] = useState('');
+
   // Sync prop changes
   useEffect(() => {
     if (pipelines) {
@@ -140,6 +145,50 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     } catch (err) {
       setUserError(err.message || 'Napaka pri ustvarjanju uporabnika.');
     }
+  };
+
+  // Export all users (with usernames & passwords) to an Excel-compatible file
+  const handleExportUsersExcel = () => {
+    if (!users || users.length === 0) {
+      alert('Ni uporabnikov za izvoz.');
+      return;
+    }
+    const esc = (v) => String(v ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const rows = users.map(u => `
+      <tr>
+        <td>${esc(u.name)}</td>
+        <td>${esc(u.username)}</td>
+        <td>${esc(u.email)}</td>
+        <td>${esc(u.password)}</td>
+        <td>${u.role === 'admin' ? 'Administrator' : 'Uporabnik'}</td>
+      </tr>`).join('');
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="UTF-8"></head>
+      <body>
+        <table border="1">
+          <thead>
+            <tr>
+              <th>Ime in priimek</th>
+              <th>Uporabniško ime</th>
+              <th>Gmail naslov</th>
+              <th>Geslo</th>
+              <th>Vloga</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body></html>`;
+
+    const blob = new Blob(['﻿', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `uporabniki_izvoz_${new Date().toISOString().split('T')[0]}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Handle group creation
@@ -326,6 +375,31 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     }).sort((a, b) => b.pct - a.pct || a.repoName.localeCompare(b.repoName));
   }, [assignments, localPipelines]);
 
+  // Apply progress-tracking filters
+  const statsFiltersActive = statsUserFilter || statsRepoFilter || statsDateFilter;
+
+  const filteredUserStats = userProgressStats
+    .map(stat => {
+      const asgns = stat.assignments.filter(a => {
+        const repoMatch = !statsRepoFilter || `${a.repoLink || ''} ${a.repoName || ''}`.toLowerCase().includes(statsRepoFilter.toLowerCase());
+        const dateMatch = !statsDateFilter || `${a.completedAt || ''} ${a.createdAt || ''}`.includes(statsDateFilter);
+        return repoMatch && dateMatch;
+      });
+      return { ...stat, visibleAssignments: asgns };
+    })
+    .filter(stat => {
+      const nameMatch = !statsUserFilter || `${stat.user.name || ''} ${stat.user.email || ''} ${stat.user.username || ''}`.toLowerCase().includes(statsUserFilter.toLowerCase());
+      const hasMatchingAsgns = (!statsRepoFilter && !statsDateFilter) || stat.visibleAssignments.length > 0;
+      return nameMatch && hasMatchingAsgns;
+    });
+
+  const filteredRepoStats = repoProgressStats.filter(repo => {
+    const repoMatch = !statsRepoFilter || `${repo.repoLink || ''} ${repo.repoName || ''}`.toLowerCase().includes(statsRepoFilter.toLowerCase());
+    const dateMatch = !statsDateFilter || repo.assignments.some(a => `${a.completedAt || ''} ${a.createdAt || ''}`.includes(statsDateFilter));
+    const userMatch = !statsUserFilter || repo.assignments.some(a => `${a.userName || ''} ${a.userEmail || ''}`.toLowerCase().includes(statsUserFilter.toLowerCase()));
+    return repoMatch && dateMatch && userMatch;
+  });
+
   const toggleUserSelection = (userId) => {
     setSelectedGroupUsers(prev => 
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
@@ -411,6 +485,51 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       {/* Tab 1: Progress and Results Tracking */}
       {activeTab === 'stats' && (
         <div>
+          {/* Filter bar */}
+          <div className="card" style={{ marginBottom: '24px', padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '150px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Ime uporabnika</label>
+              <input
+                type="text"
+                className="form-control"
+                value={statsUserFilter}
+                onChange={e => setStatsUserFilter(e.target.value)}
+                placeholder="Filtriraj po imenu…"
+                style={{ fontSize: '0.82rem' }}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: '150px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Repozitorij (link / ime)</label>
+              <input
+                type="text"
+                className="form-control"
+                value={statsRepoFilter}
+                onChange={e => setStatsRepoFilter(e.target.value)}
+                placeholder="github.com/owner/repo…"
+                style={{ fontSize: '0.82rem' }}
+              />
+            </div>
+            <div style={{ width: '170px' }}>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Datum</label>
+              <input
+                type="date"
+                className="form-control"
+                value={statsDateFilter}
+                onChange={e => setStatsDateFilter(e.target.value)}
+                style={{ fontSize: '0.82rem' }}
+              />
+            </div>
+            {statsFiltersActive && (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '8px 12px' }}
+                onClick={() => { setStatsUserFilter(''); setStatsRepoFilter(''); setStatsDateFilter(''); }}
+              >
+                ✕ Počisti filtre
+              </button>
+            )}
+          </div>
+
           {/* Progress Overview Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px', marginBottom: '30px' }}>
             
@@ -423,9 +542,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                   Ni registriranih uporabnikov z vlogo "user".
                 </div>
+              ) : filteredUserStats.length === 0 ? (
+                <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  🔍 Noben uporabnik ne ustreza filtrom.
+                </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-                  {userProgressStats.map(stat => (
+                  {filteredUserStats.map(stat => (
                     <div key={stat.user.id} className="card" style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                         <div>
@@ -491,7 +614,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                               </tr>
                             </thead>
                             <tbody>
-                              {stat.assignments.map(asgn => {
+                              {stat.visibleAssignments.map(asgn => {
                                 const done = asgn.status === 'completed';
                                 return (
                                   <tr key={asgn.id}>
@@ -547,9 +670,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                   Ni dodeljenih repozitorijev.
                 </div>
+              ) : filteredRepoStats.length === 0 ? (
+                <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  🔍 Noben repozitorij ne ustreza filtrom.
+                </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-                  {repoProgressStats.map(stat => (
+                  {filteredRepoStats.map(stat => (
                     <div key={stat.repoLink} className="card" style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                         <div>
@@ -595,9 +722,19 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* User list */}
           <div>
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              Registrirani uporabniki ({users.length})
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <h3 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', margin: 0 }}>
+                Registrirani uporabniki ({users.length})
+              </h3>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '5px 10px' }}
+                onClick={handleExportUsersExcel}
+                title="Izvozi vse uporabnike z uporabniškimi imeni in gesli v Excel datoteko"
+              >
+                ⇩ Izvozi v Excel (imena & gesla)
+              </button>
+            </div>
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <table className="data-table">
                 <thead>

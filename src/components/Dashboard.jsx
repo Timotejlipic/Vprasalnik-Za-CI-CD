@@ -555,6 +555,19 @@ export default function Dashboard({
   const [showNewAssessmentModal, setShowNewAssessmentModal] = useState(false);
   const [updatingDiff, setUpdatingDiff] = useState(null); // { pipeline, diff } for the confirmation modal
 
+  // Filters
+  const [filterName, setFilterName] = useState('');
+  const [filterRepo, setFilterRepo] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
+  const filteredPipelines = pipelines.filter(p => {
+    const nameMatch = !filterName || `${p.name || ''} ${p.assessor || ''}`.toLowerCase().includes(filterName.toLowerCase());
+    const repoMatch = !filterRepo || `${p.repoLink || ''}`.toLowerCase().includes(filterRepo.toLowerCase());
+    const dateMatch = !filterDate || `${p.date || ''}`.includes(filterDate);
+    return nameMatch && repoMatch && dateMatch;
+  });
+  const hasActiveFilters = filterName || filterRepo || filterDate;
+
   const handleDelete = async (id) => {
     if (window.confirm('Ali res želite izbrisati ta popis cevovoda?')) {
       try {
@@ -651,6 +664,56 @@ export default function Dashboard({
         </button>
       </div>
 
+      {/* Filter bar */}
+      {pipelines.length > 0 && (
+        <div className="card" style={{ marginBottom: '14px', padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '160px' }}>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Ime / ocenjevalec</label>
+            <input
+              type="text"
+              className="form-control"
+              value={filterName}
+              onChange={e => setFilterName(e.target.value)}
+              placeholder="Filtriraj po imenu…"
+              style={{ fontSize: '0.82rem' }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: '160px' }}>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Repozitorij (link)</label>
+            <input
+              type="text"
+              className="form-control"
+              value={filterRepo}
+              onChange={e => setFilterRepo(e.target.value)}
+              placeholder="github.com/owner/repo…"
+              style={{ fontSize: '0.82rem' }}
+            />
+          </div>
+          <div style={{ width: '170px' }}>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Datum</label>
+            <input
+              type="date"
+              className="form-control"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              style={{ fontSize: '0.82rem' }}
+            />
+          </div>
+          {hasActiveFilters && (
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: '0.78rem', padding: '8px 12px' }}
+              onClick={() => { setFilterName(''); setFilterRepo(''); setFilterDate(''); }}
+            >
+              ✕ Počisti filtre
+            </button>
+          )}
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+            Prikazanih {filteredPipelines.length} / {pipelines.length}
+          </span>
+        </div>
+      )}
+
       <div className="card">
         {pipelines.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
@@ -659,6 +722,12 @@ export default function Dashboard({
             <div style={{ fontSize: '0.85rem' }}>
               Kliknite <strong>Novo ocenjevanje</strong> za začetek.
             </div>
+          </div>
+        ) : filteredPipelines.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '10px', opacity: 0.3 }}>🔍</div>
+            <div style={{ fontWeight: 600, marginBottom: '6px' }}>Noben cevovod ne ustreza filtrom</div>
+            <div style={{ fontSize: '0.85rem' }}>Poskusite spremeniti ali počistiti filtre.</div>
           </div>
         ) : (
           <table className="data-table">
@@ -673,7 +742,7 @@ export default function Dashboard({
               </tr>
             </thead>
             <tbody>
-              {pipelines.map(p => {
+              {filteredPipelines.map(p => {
                 const diff = detectPipelineChanges(p, questionnaires, rulesVersions);
                 const badgeClass = p.level <= 2 ? 'badge-red' : p.level <= 4 ? 'badge-orange' : 'badge-green';
                 

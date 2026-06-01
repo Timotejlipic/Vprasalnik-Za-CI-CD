@@ -237,27 +237,30 @@ export const api = {
   async createPipeline(pipeline) {
     const online = await this.checkHealth();
     if (online) {
-      const res = await fetch(`${API_BASE}/api/pipelines`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(pipeline)
-      });
-      if (!res.ok) throw new Error('Napaka pri shranjevanju cevovoda.');
-      return await res.json();
-    } else {
-      // Offline fallback
-      const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES));
-      const newPipeline = {
-        ...pipeline,
-        id: 'p_' + Date.now(),
-        userId: this.getCurrentUser()?.id || 'guest',
-        date: new Date().toISOString().split('T')[0],
-        versions: []
-      };
-      pipelines.push(newPipeline);
-      localStorage.setItem(KEYS.PIPELINES, JSON.stringify(pipelines));
-      return newPipeline;
+      try {
+        const res = await fetch(`${API_BASE}/api/pipelines`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify(pipeline)
+        });
+        if (res.ok) return await res.json();
+        console.warn(`Online createPipeline rejected (status ${res.status}); using offline fallback.`);
+      } catch (err) {
+        console.warn('Online createPipeline failed, using offline fallback:', err);
+      }
     }
+    // Offline fallback
+    const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES)) || [];
+    const newPipeline = {
+      ...pipeline,
+      id: 'p_' + Date.now(),
+      userId: this.getCurrentUser()?.id || 'guest',
+      date: new Date().toISOString().split('T')[0],
+      versions: []
+    };
+    pipelines.push(newPipeline);
+    localStorage.setItem(KEYS.PIPELINES, JSON.stringify(pipelines));
+    return newPipeline;
   },
 
   async updatePipeline(id, pipeline, createNewVersion = false) {
@@ -294,49 +297,63 @@ export const api = {
         }
       }
 
-      const res = await fetch(`${API_BASE}/api/pipelines/${id}`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify({ ...pipeline, createNewVersion })
-      });
-      if (!res.ok) throw new Error('Napaka pri posodabljanju cevovoda.');
-      const data = await res.json();
-      
-      const snapshotKey = `cicdq_versions_${id}`;
-      data.versions = JSON.parse(localStorage.getItem(snapshotKey)) || [];
-      return data;
-    } else {
-      // Offline fallback
-      const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES));
-      const idx = pipelines.findIndex(p => p.id === id);
-      if (idx > -1) {
-        const old = pipelines[idx];
-        let updatedVersions = old.versions || [];
-        if (createNewVersion) {
-          const snapshot = {
-            version: (old.versions?.length || 0) + 1,
-            qVersion: old.version || '1.0',
-            rulesVersion: old.rulesVersion || old.version || '1.0',
-            date: old.date,
-            name: old.name,
-            score: old.score,
-            level: old.level,
-            assessor: old.assessor,
-            answers: { ...old.answers }
-          };
-          updatedVersions = [...updatedVersions, snapshot];
+      try {
+        const res = await fetch(`${API_BASE}/api/pipelines/${id}`, {
+          method: 'PUT',
+          headers: getHeaders(),
+          body: JSON.stringify({ ...pipeline, createNewVersion })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const snapshotKey = `cicdq_versions_${id}`;
+          data.versions = JSON.parse(localStorage.getItem(snapshotKey)) || [];
+          return data;
         }
-        pipelines[idx] = {
-          ...old,
-          ...pipeline,
-          date: new Date().toISOString().split('T')[0],
-          versions: updatedVersions
-        };
-        localStorage.setItem(KEYS.PIPELINES, JSON.stringify(pipelines));
-        return pipelines[idx];
+        console.warn(`Online updatePipeline rejected (status ${res.status}); using offline fallback.`);
+      } catch (err) {
+        console.warn('Online updatePipeline failed, using offline fallback:', err);
       }
-      throw new Error('Cevovod ni bil najden.');
     }
+    // Offline fallback
+    const pipelines = JSON.parse(localStorage.getItem(KEYS.PIPELINES)) || [];
+    const idx = pipelines.findIndex(p => p.id === id);
+    if (idx > -1) {
+      const old = pipelines[idx];
+      let updatedVersions = old.versions || [];
+      if (createNewVersion) {
+        const snapshot = {
+          version: (old.versions?.length || 0) + 1,
+          qVersion: old.version || '1.0',
+          rulesVersion: old.rulesVersion || old.version || '1.0',
+          date: old.date,
+          name: old.name,
+          score: old.score,
+          level: old.level,
+          assessor: old.assessor,
+          answers: { ...old.answers }
+        };
+        updatedVersions = [...updatedVersions, snapshot];
+      }
+      pipelines[idx] = {
+        ...old,
+        ...pipeline,
+        date: new Date().toISOString().split('T')[0],
+        versions: updatedVersions
+      };
+      localStorage.setItem(KEYS.PIPELINES, JSON.stringify(pipelines));
+      return pipelines[idx];
+    }
+    // Not in local cache - store it locally so the update isn't lost
+    const created = {
+      ...pipeline,
+      id,
+      userId: this.getCurrentUser()?.id || 'guest',
+      date: new Date().toISOString().split('T')[0],
+      versions: []
+    };
+    pipelines.push(created);
+    localStorage.setItem(KEYS.PIPELINES, JSON.stringify(pipelines));
+    return created;
   },
 
   async deletePipeline(id) {

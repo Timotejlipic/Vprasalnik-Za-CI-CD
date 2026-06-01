@@ -311,17 +311,49 @@ export default function Assessment1({
           createNewVersionMode
         );
       } else {
-        savedPipe = await api.createPipeline({
-          name,
-          repoId: encodedRepoId,
-          repoLink,
-          assessor,
-          score: finalScore,
-          level: finalLevel,
-          answers: finalAnswers,
-          version: assessmentVersion,
-          rulesVersion,
-        });
+        // If this assessor already assessed the same repo link, offer to create
+        // a new version of the existing pipeline instead of a new entry.
+        const normalizeRepo = (u) => (u || '').trim().toLowerCase()
+          .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
+          .replace(/\.git$/, '')
+          .replace(/\/$/, '');
+        const existingPipe = (repoLink && repoLink.trim())
+          ? pipelines.find(p => normalizeRepo(p.repoLink) === normalizeRepo(repoLink) &&
+              (!assessor || !p.assessor || p.assessor === assessor))
+          : null;
+
+        if (existingPipe && window.confirm(
+          `Repozitorij "${repoLink}" je že bil ocenjen (cevovod "${existingPipe.name}").\n\n` +
+          `Želite namesto novega vnosa ustvariti novo verzijo obstoječe ocene?`
+        )) {
+          savedPipe = await api.updatePipeline(
+            existingPipe.id,
+            {
+              name: existingPipe.name || name,
+              repoId: encodedRepoId,
+              repoLink,
+              assessor,
+              score: finalScore,
+              level: finalLevel,
+              answers: finalAnswers,
+              version: assessmentVersion,
+              rulesVersion,
+            },
+            true // createNewVersion
+          );
+        } else {
+          savedPipe = await api.createPipeline({
+            name,
+            repoId: encodedRepoId,
+            repoLink,
+            assessor,
+            score: finalScore,
+            level: finalLevel,
+            answers: finalAnswers,
+            version: assessmentVersion,
+            rulesVersion,
+          });
+        }
 
         // Automatically complete the assignment if it was launched from an assigned task
         if (assessmentMeta && assessmentMeta.assignmentId) {

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../api.js';
+import { getFlatCategoriesItems } from '../utils.js';
 
 function LevelModal({ levelObj, onSave, onClose, categories }) {
   const [levelNum, setLevelNum] = useState(levelObj?.level !== undefined ? levelObj.level : (levelObj?.id || 1));
@@ -654,6 +655,41 @@ export default function Rules({
   const [editingLevel, setEditingLevel] = useState(null); // rules object or {} for new
   const [localRulesVersion, setLocalRulesVersion] = useState(selectedRulesVersion || '');
   const [openLevels, setOpenLevels] = useState({});
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+
+  // Flatten all questionnaire elements from the active questionnaire
+  const allQuestionnaireItems = useMemo(() => {
+    const flat = getFlatCategoriesItems(categories || []);
+    // category title per item id, for grouping
+    const catOf = {};
+    (categories || []).forEach(cat => {
+      getFlatCategoriesItems([cat]).forEach(it => { catOf[it.id] = cat.title; });
+    });
+    return flat.map(it => ({ id: it.id, label: it.label || it.id, category: catOf[it.id] || 'Ostalo' }));
+  }, [categories]);
+
+  // Question ids already referenced by the maturity model
+  const usedItemIds = useMemo(() => {
+    const ids = new Set();
+    (rules || []).forEach(r => {
+      (r.criteria || []).forEach(c => { if (c.item_id) ids.add(c.item_id); });
+      const sugg = r.improvement_suggestions || {};
+      Object.keys(sugg).forEach(k => ids.add(k));
+    });
+    return ids;
+  }, [rules]);
+
+  // Questionnaire elements not yet part of the model
+  const unusedItems = useMemo(() => {
+    return allQuestionnaireItems.filter(it => !usedItemIds.has(it.id));
+  }, [allQuestionnaireItems, usedItemIds]);
+
+  const unusedGrouped = useMemo(() => {
+    return unusedItems.reduce((acc, q) => {
+      (acc[q.category] = acc[q.category] || []).push(q);
+      return acc;
+    }, {});
+  }, [unusedItems]);
 
   useEffect(() => {
     if (selectedRulesVersion && selectedRulesVersion !== localRulesVersion) {
@@ -991,17 +1027,91 @@ export default function Rules({
         Tukaj lahko določite in prilagodite pravila za izračun nivoja zrelosti CI/CD cevovodov. Pravila lahko temeljijo na minimalnem odstotku točk ali pa na naprednih logičnih kriterijih za posamezna vprašanja.
       </div>
 
+      {/* Questionnaire elements not yet used in the maturity model */}
+      {allQuestionnaireItems.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '16px',
+          padding: '10px 14px',
+          background: unusedItems.length > 0 ? 'rgba(234,179,8,0.06)' : 'rgba(46,160,67,0.06)',
+          borderRadius: '8px',
+          border: `1px solid ${unusedItems.length > 0 ? 'rgba(234,179,8,0.18)' : 'rgba(46,160,67,0.18)'}`,
+          flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', flexShrink: 0 }}>
+            Elementi vprašalnika, ki še niso v modelu:
+          </span>
+          {unusedItems.length === 0 ? (
+            <span style={{ fontSize: '0.82rem', color: 'var(--success-color)', fontWeight: 600 }}>
+              ✓ Vsi elementi vprašalnika ({allQuestionnaireItems.length}) so že vključeni v model.
+            </span>
+          ) : (
+            <>
+              <select
+                className="form-control"
+                defaultValue=""
+                title="Seznam vprašanj iz vprašalnika, ki jih noben kriterij ali priporočilo v pravilih še ne uporablja"
+                style={{
+                  background: 'var(--panel-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.82rem',
+                  maxWidth: '420px',
+                }}
+              >
+                <option value="" disabled>
+                  -- {unusedItems.length} neuporabljenih elementov --
+                </option>
+                {Object.entries(unusedGrouped).map(([category, questions]) => (
+                  <optgroup key={category} label={category}>
+                    {questions.map(q => (
+                      <option key={q.id} value={q.id}>
+                        {q.label.length > 50 ? q.label.substring(0, 50) + '…' : q.label} ({q.id})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <span className="badge" style={{ fontSize: '0.72rem', background: 'rgba(234,179,8,0.12)', color: 'var(--warning-color)', border: '1px solid rgba(234,179,8,0.25)', padding: '3px 8px', borderRadius: '12px' }}>
+                {unusedItems.length} / {allQuestionnaireItems.length}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Stats and Accordion Toggle Actions */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
           {rules.length} stopenj zrelosti določenih
         </span>
-        {rules.length > 0 && (
+        {rules.length > 0 && viewMode === 'cards' && (
           <>
             <button className="btn btn-ghost" style={{ fontSize: '0.76rem', padding: '2px 8px' }} onClick={expandAll}>Razširi vse</button>
             <button className="btn btn-ghost" style={{ fontSize: '0.76rem', padding: '2px 8px' }} onClick={collapseAll}>Skrči vse</button>
           </>
         )}
+        {/* View mode toggle: cards vs. table */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '3px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+          <button
+            className={`btn ${viewMode === 'cards' ? 'btn-accent' : 'btn-ghost'}`}
+            style={{ fontSize: '0.76rem', padding: '4px 10px', borderRadius: '6px' }}
+            onClick={() => setViewMode('cards')}
+          >
+            ▤ Kartice
+          </button>
+          <button
+            className={`btn ${viewMode === 'table' ? 'btn-accent' : 'btn-ghost'}`}
+            style={{ fontSize: '0.76rem', padding: '4px 10px', borderRadius: '6px' }}
+            onClick={() => setViewMode('table')}
+          >
+            ▦ Tabela
+          </button>
+        </div>
       </div>
 
       {sortedRules.length === 0 && (
@@ -1011,7 +1121,68 @@ export default function Rules({
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Table view for quick overview */}
+      {viewMode === 'table' && sortedRules.length > 0 && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '90px' }}>Stopnja</th>
+                <th>Ime / Oznaka</th>
+                <th style={{ width: '90px', textAlign: 'center' }}>Min. %</th>
+                <th style={{ width: '90px', textAlign: 'center' }}>Kriteriji</th>
+                <th style={{ width: '110px', textAlign: 'center' }}>Priporočila</th>
+                <th>Kratek opis</th>
+                {isAdmin && <th style={{ width: '150px', textAlign: 'right' }}>Dejanja</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRules.map(r => {
+                const levelId = r.level !== undefined ? r.level : r.id;
+                const levelName = r.name || r.label;
+                const levelDesc = r.description || r.short_description || '';
+                const minScore = r.minScore;
+                const criteria = r.criteria || [];
+                const suggestions = r.improvement_suggestions || {};
+                return (
+                  <tr key={levelId}>
+                    <td>
+                      <span className="badge badge-blue" style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        Stopnja {levelId}
+                      </span>
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{levelName}</td>
+                    <td style={{ textAlign: 'center', color: minScore !== undefined ? 'var(--accent-color)' : 'var(--text-secondary)' }}>
+                      {minScore !== undefined ? `${minScore}%` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {criteria.length > 0 ? (
+                        <span style={{ color: 'var(--success-color)', fontWeight: 600 }}>{criteria.length}</span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>0</span>}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {Object.keys(suggestions).length > 0 ? (
+                        <span style={{ color: 'var(--warning-color)', fontWeight: 600 }}>{Object.keys(suggestions).length}</span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>0</span>}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', maxWidth: '320px' }}>
+                      {levelDesc ? (levelDesc.length > 90 ? levelDesc.substring(0, 90) + '…' : levelDesc) : '—'}
+                    </td>
+                    {isAdmin && (
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 8px' }} onClick={() => setEditingLevel(r)}>✎ Uredi</button>
+                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 6px', color: 'var(--danger-color)' }} onClick={() => handleDeleteLevel(levelId)}>✕</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div style={{ display: viewMode === 'table' ? 'none' : 'flex', flexDirection: 'column', gap: '14px' }}>
         {sortedRules.map(r => {
           const levelId = r.level !== undefined ? r.level : r.id;
           const levelName = r.name || r.label;
