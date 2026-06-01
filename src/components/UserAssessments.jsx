@@ -6,10 +6,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
-<<<<<<< HEAD
-=======
   // Results details modal state
->>>>>>> 18ff9dc (updates and fixes)
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
   const [categories, setCategories] = useState([]);

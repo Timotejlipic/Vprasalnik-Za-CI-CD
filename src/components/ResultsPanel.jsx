@@ -23,10 +23,7 @@ export default function ResultsPanel({
 }) {
   const color = scoreColor(results.score);
 
-<<<<<<< HEAD
-=======
   // 1. Find next level and calculate % missing of criteria
->>>>>>> 18ff9dc (updates and fixes)
   const sortedLevels = [...rules].sort((a, b) => {
     const aId = a.level !== undefined ? a.level : a.id;
     const bId = b.level !== undefined ? b.level : b.id;
@@ -46,10 +43,7 @@ export default function ResultsPanel({
     pctMissing = 100 - pctMet;
   }
 
-<<<<<<< HEAD
-=======
   // 2. Helper to calculate section stats recursively
->>>>>>> 18ff9dc (updates and fixes)
   const getCategoryStats = (cat) => {
     let filled = 0;
     let total = 0;
@@ -83,10 +77,7 @@ export default function ResultsPanel({
     return { filled, total, pct, itemsList };
   };
 
-<<<<<<< HEAD
-=======
   // Group categories by superCategory
->>>>>>> 18ff9dc (updates and fixes)
   const superGroups = {};
   categories.forEach(cat => {
     const superTitle = cat.superCategory || "CI/CD Proces";
@@ -96,28 +87,18 @@ export default function ResultsPanel({
     superGroups[superTitle].push(cat);
   });
 
-<<<<<<< HEAD
-=======
   // Calculate stats for all categories beforehand to determine initial open state
->>>>>>> 18ff9dc (updates and fixes)
   const categoriesStats = {};
   categories.forEach(cat => {
     categoriesStats[cat.id] = getCategoryStats(cat);
   });
 
-<<<<<<< HEAD
-=======
   // Initialize open state: incomplete categories are OPEN by default, completed ones are CLOSED
->>>>>>> 18ff9dc (updates and fixes)
   const [openSections, setOpenSections] = React.useState(() => {
     const initial = {};
     categories.forEach(cat => {
       const stats = categoriesStats[cat.id];
-<<<<<<< HEAD
-      initial[cat.id] = stats.pct < 100; 
-=======
       initial[cat.id] = stats.pct < 100; // Open only if incomplete!
->>>>>>> 18ff9dc (updates and fixes)
     });
     return initial;
   });

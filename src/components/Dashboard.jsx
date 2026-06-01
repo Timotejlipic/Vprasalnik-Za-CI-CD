@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../api.js';
 import { evaluateAssessment, getFlatCategoriesItems } from '../utils.js';
 
-<<<<<<< HEAD
-=======
 // Helper to extract UI-compatible categories for a specific pipeline's version
->>>>>>> 18ff9dc (updates and fixes)
 function getPipelineCategories(p, questionnairesList) {
   const version = p.qVersion || p.version || "1.0";
   const qObj = questionnairesList.find(q => q.version === version);
@@ -13,10 +10,7 @@ function getPipelineCategories(p, questionnairesList) {
   
   const result = [];
   qObj.sections.forEach(section => {
-<<<<<<< HEAD
-=======
     // Normalise super-category label
->>>>>>> 18ff9dc (updates and fixes)
     const id = (section.id || '').toLowerCase();
     let superCategory = 'Ostalo';
     if (id.includes('build') || id.includes('unit_test') || id.includes('sc_build') || id.includes('sc_test')) {
@@ -48,10 +42,7 @@ function getPipelineCategories(p, questionnairesList) {
   return result;
 }
 
-<<<<<<< HEAD
-=======
 // Helper to detect if form or rules have changed compared to saved pipeline evaluation
->>>>>>> 18ff9dc (updates and fixes)
 function detectPipelineChanges(p, questionnairesList, rulesVersionsList) {
   const pCats = getPipelineCategories(p, questionnairesList);
   
@@ -63,33 +54,18 @@ function detectPipelineChanges(p, questionnairesList, rulesVersionsList) {
     return { hasChanges: false, added: [], removed: [], scoreChanged: false };
   }
 
-<<<<<<< HEAD
-=======
   // Flatten all active question items recursively
->>>>>>> 18ff9dc (updates and fixes)
   const flatItems = getFlatCategoriesItems(pCats);
 
   const activeKeys = flatItems.map(item => item.id);
   const answeredKeys = Object.keys(p.answers || {});
 
-<<<<<<< HEAD
-=======
   // If the pipeline has no answers saved at all, it is either new, empty,
   // or the database is in an unseeded initial state. We treat it as having no changes.
->>>>>>> 18ff9dc (updates and fixes)
   if (answeredKeys.length === 0) {
     return { hasChanges: false, added: [], removed: [], scoreChanged: false };
   }
 
-<<<<<<< HEAD
-  const added = flatItems.filter(item => !answeredKeys.includes(item.id));
-  
-  const removedKeys = answeredKeys.filter(key => !activeKeys.includes(key));
-  const removed = removedKeys.map(key => ({ id: key }));
-
-  const silentEval = evaluateAssessment(p.answers || {}, pCats, pRules);
-
-=======
   // 1. Detect new questions (exist in current version but missing from answers)
   const added = flatItems.filter(item => !answeredKeys.includes(item.id));
   
@@ -101,15 +77,11 @@ function detectPipelineChanges(p, questionnairesList, rulesVersionsList) {
   const silentEval = evaluateAssessment(p.answers || {}, pCats, pRules);
 
   // Dynamically populate score if database returned 0 due to database schema limitations (lack of score column)
->>>>>>> 18ff9dc (updates and fixes)
   if (p.score === 0 || p.score === undefined) {
     p.score = silentEval.score;
   }
 
-<<<<<<< HEAD
-=======
   // Populate dynamic score for historical versions too
->>>>>>> 18ff9dc (updates and fixes)
   if (p.versions && Array.isArray(p.versions)) {
     p.versions.forEach(v => {
       if (v.score === 0 || v.score === undefined) {
@@ -124,11 +96,8 @@ function detectPipelineChanges(p, questionnairesList, rulesVersionsList) {
     });
   }
 
-<<<<<<< HEAD
-=======
   // Dynamically correct score/level if there are no questionnaire structural changes
   // to resolve past backend rules-version mismatches or lack of columns
->>>>>>> 18ff9dc (updates and fixes)
   if (added.length === 0 && removed.length === 0) {
     p.score = silentEval.score;
     p.level = silentEval.level;
@@ -620,23 +589,15 @@ export default function Dashboard({
     if (!updatingDiff) return;
     const { pipeline, diff } = updatingDiff;
     
-<<<<<<< HEAD
-    const newAnswers = { ...pipeline.answers };
-    
-=======
     // 1. Construct new answers map
     const newAnswers = { ...pipeline.answers };
     
     // Remove obsolete answers
->>>>>>> 18ff9dc (updates and fixes)
     diff.removed.forEach(r => {
       delete newAnswers[r.id];
     });
 
-<<<<<<< HEAD
-=======
     // Add new questions with default values (false/NE for checkboxes, empty string for texts)
->>>>>>> 18ff9dc (updates and fixes)
     diff.added.forEach(a => {
       if (a.type === 'checkbox' || a.type === 'yes_no_na') {
         newAnswers[a.id] = 'NE';
@@ -646,10 +607,7 @@ export default function Dashboard({
     });
 
     try {
-<<<<<<< HEAD
-=======
       // 2. Build update payload
->>>>>>> 18ff9dc (updates and fixes)
       const updatedPayload = {
         ...pipeline,
         answers: newAnswers,
@@ -657,15 +615,10 @@ export default function Dashboard({
         level: diff.newLevel
       };
 
-<<<<<<< HEAD
-      const res = await api.updatePipeline(pipeline.id, updatedPayload, true);
-      
-=======
       // 3. Save to backend (creates a historical version snapshot as well)
       const res = await api.updatePipeline(pipeline.id, updatedPayload, true);
       
       // 4. Update local state
->>>>>>> 18ff9dc (updates and fixes)
       setPipelines(pipelines.map(p => p.id === pipeline.id ? {
         ...p,
         answers: newAnswers,
@@ -724,20 +677,14 @@ export default function Dashboard({
                 const diff = detectPipelineChanges(p, questionnaires, rulesVersions);
                 const badgeClass = p.level <= 2 ? 'badge-red' : p.level <= 4 ? 'badge-orange' : 'badge-green';
                 
-<<<<<<< HEAD
-=======
                 // Color progress bar yellow if changes are detected, otherwise use default logic
->>>>>>> 18ff9dc (updates and fixes)
                 const barColor = diff.hasChanges
                   ? '#e3b341'
                   : (p.score < 40 ? '#f85149' : p.score < 75 ? '#d29922' : '#2ea043');
                 
                 const vCount = totalVersions(p);
                 
-<<<<<<< HEAD
-=======
                 // Row background: highlight in yellow/amber if form/rules changed
->>>>>>> 18ff9dc (updates and fixes)
                 const rowStyle = diff.hasChanges ? {
                   background: 'rgba(210, 153, 34, 0.05)',
                   borderLeft: '4px solid #e3b341'

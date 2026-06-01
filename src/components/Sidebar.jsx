@@ -1,14 +1,9 @@
 import React from 'react';
 
 export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = true, user, userRole, setAppState, viewType, setViewType, assessmentMeta }) {
-<<<<<<< HEAD
-  const getNavItems = () => {
-    if (userRole === 'user') {
-=======
   // Dynamically build navigation items based on user role
   const getNavItems = () => {
-    if (userRole === 'evaluator') {
->>>>>>> 18ff9dc (updates and fixes)
+    if (userRole === 'user') {
       return [{ id: 'user_assessments', label: 'Ocenjevanje cevovoda' }];
     }
     return [
@@ -25,13 +20,8 @@ export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = 
         { id: 'rules', label: 'Pravila zrelosti' },
       ];
     }
-<<<<<<< HEAD
     if (userRole === 'user') {
-      return []; 
-=======
-    if (userRole === 'evaluator') {
       return []; // standard users have no admin items!
->>>>>>> 18ff9dc (updates and fixes)
     }
     return [
       { id: 'builder', label: 'Pregled vprašalnika' },

@@ -38,10 +38,7 @@ export function getMaxScore(categories) {
   return max === 0 ? 100 : max;
 }
 
-<<<<<<< HEAD
-=======
 // Checks a single criterion
->>>>>>> 18ff9dc (updates and fixes)
 export function checkCriterion(answers, crit) {
   const { item_id, operator, value } = crit;
   const ans = answers[item_id];
@@ -79,10 +76,7 @@ export function checkCriterion(answers, crit) {
   return false;
 }
 
-<<<<<<< HEAD
-=======
 // Checks if all criteria for a level are met
->>>>>>> 18ff9dc (updates and fixes)
 function checkLevelCriteria(answers, criteria) {
   if (!criteria || criteria.length === 0) return true;
   return criteria.every(crit => checkCriterion(answers, crit));
@@ -92,10 +86,7 @@ export function evaluateAssessment(answers, categories, rules) {
   const hasCustomCriteria = rules && rules.some(r => Array.isArray(r.criteria));
 
   if (hasCustomCriteria) {
-<<<<<<< HEAD
-=======
     // 1. Calculate a filled score percentage
->>>>>>> 18ff9dc (updates and fixes)
     const flatItems = getFlatCategoriesItems(categories);
     let filledScore = 0;
     let totalScoreable = 0;
@@ -128,10 +119,7 @@ export function evaluateAssessment(answers, categories, rules) {
     const maxPossible = totalScoreable === 0 ? 100 : totalScoreable;
     const score = Math.min(100, Math.round((filledScore / maxPossible) * 100));
 
-<<<<<<< HEAD
-=======
     // 2. Evaluate maturity level from 5 down to 1
->>>>>>> 18ff9dc (updates and fixes)
     const sortedLevels = [...rules].sort((a, b) => {
       const aId = a.level !== undefined ? a.level : a.id;
       const bId = b.level !== undefined ? b.level : b.id;
@@ -155,10 +143,7 @@ export function evaluateAssessment(answers, categories, rules) {
       }
     }
 
-<<<<<<< HEAD
-=======
     // 3. Compile improvement recommendations (missing items)
->>>>>>> 18ff9dc (updates and fixes)
     let missing = [];
     const nextLevelObj = sortedLevels.find(l => (l.level !== undefined ? l.level : l.id) === level + 1);
 
@@ -186,10 +171,7 @@ export function evaluateAssessment(answers, categories, rules) {
 
     return { score, level, levelName, missing: missing.slice(0, 15) };
   } else {
-<<<<<<< HEAD
-=======
     // FALLBACK: Old evaluation engine
->>>>>>> 18ff9dc (updates and fixes)
     let score = 0;
     let effectiveMax = 0;
     let missing = [];
@@ -199,10 +181,7 @@ export function evaluateAssessment(answers, categories, rules) {
         const ans = answers[item.id];
         if (item.type === 'yes_no_na') {
           if (ans === 'NA') {
-<<<<<<< HEAD
-=======
             // NA doesn't count
->>>>>>> 18ff9dc (updates and fixes)
           } else {
             effectiveMax += 10;
             if (ans === 'DA') {
