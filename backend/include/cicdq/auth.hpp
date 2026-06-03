@@ -1,4 +1,4 @@
-#ifndef CICDQ_AUTH_HPP
+﻿#ifndef CICDQ_AUTH_HPP
 #define CICDQ_AUTH_HPP
 
 // =============================================================================
@@ -38,29 +38,7 @@ extract_user(const httplib::Request& req, const std::string& secret)
     const std::string& value = it->second;
     if (value.size() < 8 || value.substr(0, 7) != "Bearer ") return std::nullopt;
 
-    const std::string token = value.substr(7);
-    if (token.size() >= 24 && token.substr(0, 24) == "mock_jwt_token_offline_")
-    {
-        std::string userId = token.substr(24);
-        JwtPayload p;
-        p.id = userId;
-        p.username = userId == "u_offline_admin" ? "admin" : "Ocenjevalec";
-        p.role = userId == "u_offline_admin" ? "admin" : "user";
-        p.exp = 9999999999;
-        return p;
-    }
-    if (token.size() >= 15 && token.substr(0, 15) == "mock_jwt_token_")
-    {
-        std::string userId = token.substr(15);
-        JwtPayload p;
-        p.id = userId;
-        p.username = userId == "u_offline_admin" ? "admin" : "Ocenjevalec";
-        p.role = userId == "u_offline_admin" ? "admin" : "user";
-        p.exp = 9999999999;
-        return p;
-    }
-
-    return verify_token(token, secret);
+    return verify_token(value.substr(7), secret);
 }
 
 

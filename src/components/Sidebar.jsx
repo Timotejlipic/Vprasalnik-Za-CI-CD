@@ -77,7 +77,7 @@ export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = 
         <>
           <div className="sidebar-divider" />
           <div className="sidebar-section-label">Izgled</div>
-          <div style={{ padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className="p-[4px_8px] flex flex-col gap-1">
             <button
               className={`btn ${viewType === 'collapsible' ? 'btn-accent' : ''}`}
               style={{ fontSize: '0.8rem', textAlign: 'left', width: '100%' }}
@@ -100,10 +100,10 @@ export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = 
         {isLoggedIn ? (
           <>
             <div className="user-avatar">{(user || 'A')[0].toUpperCase()}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-[0.82rem] text-[var(--text-primary)] overflow-hidden text-ellipsis whitespace-nowrap">{user}</div>
               <div
-                style={{ fontSize: '0.72rem', color: 'var(--accent-color)', cursor: 'pointer' }}
+                className="text-[0.72rem] text-[var(--accent-color)] cursor-pointer"
                 onClick={() => setAppState && setAppState('landing')}
               >
                 Odjava
@@ -112,9 +112,9 @@ export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = 
           </>
         ) : (
           <>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Gost · </span>
+            <span className="text-[0.82rem] text-[var(--text-secondary)]">Gost · </span>
             <span
-              style={{ color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.82rem' }}
+              className="text-[var(--accent-color)] cursor-pointer text-[0.82rem]"
               onClick={() => setAppState && setAppState('landing')}
             >
               Prijava

@@ -27,6 +27,8 @@ COPY --from=builder /app/cicdq_server /app/cicdq_server
 # Copy default config files
 COPY questionnaire_config.json /app/questionnaire_config.json
 COPY questionnaire2.json /app/questionnaire2.json
+COPY maturity_rules.json /app/maturity_rules.json
+COPY maturity_rules2.json /app/maturity_rules2.json
 
 # Default environment variables
 ENV PORT=3002

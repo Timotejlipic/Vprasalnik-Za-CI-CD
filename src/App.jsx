@@ -9,7 +9,9 @@ import Builder from './components/Builder.jsx';
 import Rules from './components/Rules.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import UserAssessments from './components/UserAssessments.jsx';
-import { api } from './api.js';
+import { api, parseEmailToName } from './api.js';
+import { openResultsInNewWindow, evaluateAssessment, detectPipelineChanges } from './utils.js';
+import ResultsPanel from './components/ResultsPanel.jsx';
 
 import clientQuestionnaireConfig from '../questionnaire_config.json';
 import clientMaturityRules from '../maturity_rules.json';
@@ -94,51 +96,98 @@ export default function App() {
   const [createNewVersionMode, setCreateNewVersionMode] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [historicVersion, setHistoricVersion] = useState(null);
+  const [isSyncMode, setIsSyncMode] = useState(false);
+  const [syncDiff, setSyncDiff] = useState(null);
 
+  // Invite states
+  const [initialShowLogin, setInitialShowLogin] = useState(false);
+  const [prefillEmail, setPrefillEmail] = useState('');
+  const [setPasswordEmail, setSetPasswordEmail] = useState('');
+
+  // Inline Results view states
+  const [inlineResultsData, setInlineResultsData] = useState(null);
+
+  const [customAlert, setCustomAlert] = useState(null);
+
+  useEffect(() => {
+    window.alert = (message) => {
+      setCustomAlert({ message });
+    };
+  }, []);
 
   // Check health and load initial data
   useEffect(() => {
     async function initApp() {
-      // 1. Restore login session or invite URL parameter (runs instantly!)
+      const params = new URLSearchParams(window.location.search);
+      const inviteEmail = params.get('email') || params.get('invite_email');
+      const inviteUser = params.get('invite_user');
+      const urlRepos = params.get('repos');
+      const urlGroups = params.get('groups');
+
+      // 1. Restore login session
       let savedUser = api.getCurrentUser();
 
-      // Auto-login from invite URL parameter if present
-      const params = new URLSearchParams(window.location.search);
-      const inviteEmail = params.get('invite_email');
-      const inviteUser = params.get('invite_user');
-      if (inviteEmail || inviteUser) {
+      const setPasswordParam = params.get('set_password');
+      if (setPasswordParam) {
+        setSetPasswordEmail(setPasswordParam);
+        setAppState('landing');
+        // Clear set_password parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      if (inviteEmail || inviteUser || urlRepos || urlGroups) {
+        let matchedUser = null;
         try {
           const usersData = await api.adminGetUsers();
-          let matchedUser = usersData.find(u => 
+          matchedUser = usersData.find(u => 
             (inviteEmail && u.email?.toLowerCase() === inviteEmail.toLowerCase()) ||
-            (inviteUser && u.id === inviteUser)
+            (inviteUser && String(u.id) === String(inviteUser))
           );
-          
-          const urlRepos = params.get('repos') ? params.get('repos').split(',') : [];
-          const urlGroups = params.get('groups') ? params.get('groups').split(',') : [];
-
-          // Auto-create standard user on the fly if not exists
-          if (!matchedUser && inviteEmail) {
+        } catch (err) {
+          console.warn('Failed to fetch users during auto-login:', err);
+        }
+        
+        if (!matchedUser && inviteEmail) {
+          try {
+            const randomPassword = 'tmp_' + Math.random().toString(36).slice(2, 10);
             matchedUser = await api.adminCreateUser({
               email: inviteEmail.trim(),
-              password: 'geslo123',
+              password: randomPassword,
               role: 'user'
             });
+          } catch (err) {
+            console.warn('Failed to auto-create user, using fallback object:', err);
+            const name = parseEmailToName(inviteEmail);
+            matchedUser = {
+              id: 'u_fallback_' + Date.now(),
+              email: inviteEmail,
+              name: name,
+              username: name,
+              role: 'user'
+            };
           }
+        }
 
-          if (matchedUser) {
-            // Synchronize/assign repositories from the URL parameter if present!
-            if (urlRepos.length > 0) {
+        if (matchedUser) {
+          // Force auto-login, overriding any stale active session!
+          localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
+          localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));
+          savedUser = matchedUser;
+
+          try {
+            // Process assignments immediately!
+            const reposList = urlRepos ? urlRepos.split(',') : [];
+            const groupsList = urlGroups ? urlGroups.split(',') : [];
+
+            if (reposList.length > 0) {
               const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
-              
-              // Clear any existing pending assignments for this user to avoid duplicates or mismatch
               const nonUserOrCompletedAsgns = assignments.filter(a => !(a.userId === matchedUser.id && a.status === 'pending'));
               
-              urlRepos.forEach((repoLink, index) => {
-                const groupName = urlGroups[index] || 'Skupina';
+              reposList.forEach((repoLink, index) => {
+                const groupName = groupsList[index] || 'Skupina';
                 const exists = nonUserOrCompletedAsgns.some(a => a.userId === matchedUser.id && a.repoLink === repoLink);
                 if (!exists) {
-                  // Helper to extract repo name
                   let repoName = repoLink;
                   try {
                     const u = new URL(repoLink);
@@ -150,7 +199,7 @@ export default function App() {
                     id: 'asgn_' + Math.random().toString(36).slice(2) + Date.now().toString(36),
                     userId: matchedUser.id,
                     userEmail: matchedUser.email,
-                    userName: matchedUser.name,
+                    userName: matchedUser.name || matchedUser.username,
                     repoLink,
                     repoName,
                     groupId: 'grp_url_' + index,
@@ -166,7 +215,7 @@ export default function App() {
               });
               localStorage.setItem('cicdq_offline_assignments', JSON.stringify(nonUserOrCompletedAsgns));
             } else {
-              // Fallback to default repositories only if no repos are in the URL and user has no assignments
+              // Default fallback group
               const existingAsgns = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
               const userHasAsgns = existingAsgns.some(a => a.userId === matchedUser.id);
               if (!userHasAsgns) {
@@ -181,15 +230,13 @@ export default function App() {
                 });
               }
             }
-
-            localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
-            localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));
-            savedUser = matchedUser;
-            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (err) {
+            console.error('Failed to sync assignments during auto-login:', err);
           }
-        } catch (err) {
-          console.error('Auto-login via invite parameter failed:', err);
         }
+
+        // Clear invitation parameters from URL for clean view
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
 
       if (savedUser) {
@@ -321,8 +368,9 @@ export default function App() {
     if (viewName === 'assessment' && !bypassReset) {
       resetAssessment();
     }
-    if (viewName !== 'assessment') {
+    if (viewName !== 'assessment' && viewName !== 'results') {
       setAssessmentMeta(null);
+      setInlineResultsData(null);
       if (isReadOnly) {
         resetAssessment();
       }
@@ -336,6 +384,8 @@ export default function App() {
     setCreateNewVersionMode(false);
     setIsReadOnly(false);
     setHistoricVersion(null);
+    setIsSyncMode(false);
+    setSyncDiff(null);
   };
 
   const loadAssessment = (id) => {
@@ -375,6 +425,41 @@ export default function App() {
     switchView('assessment', true);
   };
 
+  const onSyncAssessment = (id) => {
+    const p = pipelines.find(x => String(x.id) === String(id));
+    if (!p) return;
+    
+    const diff = detectPipelineChanges(p, questionnaires, rulesVersions);
+    
+    setCurrentAssessmentId(p.id);
+    
+    const initialAnswers = { ...p.answers };
+    diff.added.forEach(a => {
+      if (!(a.id in initialAnswers)) {
+        initialAnswers[a.id] = (a.type === 'checkbox' || a.type === 'yes_no_na') ? 'NE' : '';
+      }
+    });
+    
+    setCurrentAssessment(initialAnswers);
+    
+    const targetQVersion = p.qVersion || p.version || "1.0";
+    const targetRVersion = p.rulesVersion || p.version || "1.0";
+    
+    setSelectedVersion(targetQVersion);
+    setCurrentAssessmentVersion(targetQVersion);
+    loadCategoriesForVersion(targetQVersion);
+    
+    setSelectedRulesVersion(targetRVersion);
+    loadRulesForVersion(targetRVersion);
+    
+    setCreateNewVersionMode(true);
+    setIsReadOnly(false);
+    setHistoricVersion(null);
+    setIsSyncMode(true);
+    setSyncDiff(diff);
+    switchView('assessment', true);
+  };
+
   const onViewHistoricVersion = (pipelineId, versionObj) => {
     const p = pipelines.find(x => String(x.id) === String(pipelineId));
     if (p) {
@@ -394,6 +479,33 @@ export default function App() {
       setIsReadOnly(true);
       setHistoricVersion(versionObj);
       switchView('assessment', true);
+    }
+  };
+
+  const onPreviewAnswers = (pipeline) => {
+    const v = pipeline.version || selectedVersion || '1.0';
+    const rv = pipeline.rulesVersion || pipeline.version || selectedRulesVersion || '1.0';
+    
+    try {
+      const q = questionnaires.find(x => x.version === v) || questionnaires[0];
+      const processedCats = q ? convertConfigSectionsToCategories(q.sections || []) : categories;
+      
+      const rObj = rulesVersions.find(x => x.version === rv) || rulesVersions[0];
+      const activeRules = rObj ? (rObj.levels || rObj) : rules;
+      
+      const res = evaluateAssessment(pipeline.answers, processedCats, activeRules);
+      
+      setInlineResultsData({
+        answers: pipeline.answers,
+        results: res,
+        categories: processedCats,
+        rules: activeRules,
+        isReadOnly: true,
+        title: pipeline.name
+      });
+      switchView('results', true);
+    } catch (err) {
+      alert('Napaka pri prikazu odgovorov: ' + err.message);
     }
   };
 
@@ -505,6 +617,8 @@ export default function App() {
             onEditAssessment={onEditAssessment}
             onNewVersionAssessment={onNewVersionAssessment}
             onViewHistoricVersion={onViewHistoricVersion}
+            onPreviewAnswers={onPreviewAnswers}
+            onSyncAssessment={onSyncAssessment}
           />
         );
       case 'assessment':
@@ -529,16 +643,45 @@ export default function App() {
             createNewVersionMode={createNewVersionMode}
             isReadOnly={isReadOnly}
             historicVersion={historicVersion}
+            isSyncMode={isSyncMode}
+            syncDiff={syncDiff}
             isSidebarOpen={isSidebarOpen}
             assessmentMeta={assessmentMeta}
             isLocked={!!assessmentMeta}
+            onCalculateResults={(resData) => {
+              setInlineResultsData(resData);
+              switchView('results', true);
+            }}
           />
         );
+      case 'results':
+        return inlineResultsData ? (
+          <ResultsPanel
+            results={inlineResultsData.results}
+            answers={inlineResultsData.answers}
+            categories={inlineResultsData.categories}
+            rules={inlineResultsData.rules}
+            isReadOnly={inlineResultsData.isReadOnly}
+            isLoggedIn={isLoggedIn}
+            isInline={true}
+            onSave={inlineResultsData.onSave}
+            onClose={() => {
+              if (userRole === 'user') {
+                switchView('user_assessments', true);
+              } else {
+                switchView('dashboard', true);
+              }
+            }}
+          />
+        ) : null;
       case 'admin_dashboard':
         return (
           <AdminDashboard
             pipelines={pipelines}
             switchView={switchView}
+            questionnaires={questionnaires}
+            rulesVersions={rulesVersions}
+            onPreviewAnswers={onPreviewAnswers}
           />
         );
       case 'user_assessments':
@@ -547,11 +690,29 @@ export default function App() {
             user={user}
             isLoggedIn={isLoggedIn}
             switchView={switchView}
-            startAssessmentForRepo={(repoLink, assignmentId) => {
+            onPreviewAnswers={onPreviewAnswers}
+            startAssessmentForRepo={async (repoLink, assignmentId) => {
               resetAssessment();
-              setSelectedVersion('1.0');
-              setCurrentAssessmentVersion('1.0');
-              loadCategoriesForVersion('1.0');
+              
+              let fVer = '1.0';
+              let rVer = '1.0';
+              
+              try {
+                const asgns = await api.adminGetAssignments();
+                const matched = asgns.find(a => String(a.id) === String(assignmentId));
+                if (matched) {
+                  fVer = matched.formVersion || '1.0';
+                  rVer = matched.rulesVersion || '1.0';
+                }
+              } catch (err) {
+                console.warn('Failed to load assignment versions, using 1.0 default:', err);
+              }
+              
+              setSelectedVersion(fVer);
+              setCurrentAssessmentVersion(fVer);
+              setSelectedRulesVersion(rVer);
+              loadCategoriesForVersion(fVer);
+              loadRulesForVersion(rVer);
               
               // Automatically extract repo name
               let repoName = repoLink;
@@ -612,6 +773,8 @@ export default function App() {
             onEditAssessment={onEditAssessment}
             onNewVersionAssessment={onNewVersionAssessment}
             onViewHistoricVersion={onViewHistoricVersion}
+            onPreviewAnswers={onPreviewAnswers}
+            onSyncAssessment={onSyncAssessment}
           />
         );
     }
@@ -623,13 +786,80 @@ export default function App() {
     setAppState('app');
   };
 
-  const enterAsAdmin = (username) => {
+  const enterAsAdmin = async (username) => {
     setUser(username);
     const currentUser = api.getCurrentUser();
     const role = currentUser?.role || 'user';
     setUserRole(role);
     setIsLoggedIn(true);
     setAppState('app');
+
+    // Process pending invite if one exists in sessionStorage
+    const pendingInviteStr = sessionStorage.getItem('cicdq_pending_invite');
+    if (pendingInviteStr && currentUser) {
+      try {
+        const invite = JSON.parse(pendingInviteStr);
+        const urlRepos = invite.repos ? invite.repos.split(',') : [];
+        const urlGroups = invite.groups ? invite.groups.split(',') : [];
+
+        if (urlRepos.length > 0) {
+          const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
+          
+          // Clear any existing pending assignments for this user to avoid duplicates or mismatch
+          const nonUserOrCompletedAsgns = assignments.filter(a => !(a.userId === currentUser.id && a.status === 'pending'));
+          
+          urlRepos.forEach((repoLink, index) => {
+            const groupName = urlGroups[index] || 'Skupina';
+            const exists = nonUserOrCompletedAsgns.some(a => a.userId === currentUser.id && a.repoLink === repoLink);
+            if (!exists) {
+              let repoName = repoLink;
+              try {
+                const u = new URL(repoLink);
+                const parts = u.pathname.split('/').filter(Boolean);
+                if (parts.length >= 2) repoName = `${parts[0]}/${parts[1]}`;
+              } catch {}
+              
+              nonUserOrCompletedAsgns.push({
+                id: 'asgn_' + Math.random().toString(36).slice(2) + Date.now().toString(36),
+                userId: currentUser.id,
+                userEmail: currentUser.email,
+                userName: currentUser.name || currentUser.username || username,
+                repoLink,
+                repoName,
+                groupId: 'grp_url_' + index,
+                groupName: groupName,
+                status: 'pending',
+                score: null,
+                level: null,
+                pipelineId: null,
+                answers: null,
+                createdAt: new Date().toISOString().split('T')[0]
+              });
+            }
+          });
+          localStorage.setItem('cicdq_offline_assignments', JSON.stringify(nonUserOrCompletedAsgns));
+        } else {
+          // Fallback to default repositories only if no repos are in the URL and user has no assignments
+          const existingAsgns = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
+          const userHasAsgns = existingAsgns.some(a => a.userId === currentUser.id);
+          if (!userHasAsgns) {
+            await api.adminCreateGroup({
+              name: 'Splošna skupina',
+              userIds: [currentUser.id],
+              githubRepos: [
+                'https://github.com/react/react',
+                'https://github.com/vitejs/vite',
+                'https://github.com/vuejs/core'
+              ]
+            });
+          }
+        }
+        sessionStorage.removeItem('cicdq_pending_invite');
+      } catch (err) {
+        console.error('Failed to process pending invite:', err);
+      }
+    }
+
     if (role === 'user') {
       setCurrentView('user_assessments');
     } else {
@@ -645,34 +875,150 @@ export default function App() {
     setAppState('landing');
   };
 
+  const renderCustomAlert = () => {
+    if (!customAlert) return null;
+    const isError = customAlert.message.toLowerCase().includes('napaka') || 
+                    customAlert.message.toLowerCase().includes('error') || 
+                    customAlert.message.toLowerCase().includes('neveljavn');
+    return (
+      <div 
+        className="modal-overlay" 
+        style={{ zIndex: 99999 }}
+        onClick={() => setCustomAlert(null)}
+      >
+        <div 
+          className="modal-card" 
+          style={{ 
+            maxWidth: '420px', 
+            textAlign: 'center', 
+            padding: '30px 24px',
+            border: isError ? '1px solid rgba(239, 83, 80, 0.3)' : '1px solid rgba(88, 166, 255, 0.3)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            background: 'var(--panel-bg)'
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{
+            fontSize: '3rem',
+            marginBottom: '16px',
+            lineHeight: '1',
+            color: isError ? 'var(--danger-color, #ef5350)' : 'var(--accent-color, #58a6ff)'
+          }}>
+            {isError ? '⚠️' : '✨'}
+          </div>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            marginBottom: '12px',
+            marginTop: '0'
+          }}>
+            {isError ? 'Napaka' : 'Obvestilo'}
+          </h3>
+          <div style={{
+            fontSize: '0.92rem',
+            color: 'var(--text-secondary)',
+            lineHeight: '1.5',
+            marginBottom: '24px',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word'
+          }}>
+            {customAlert.message}
+          </div>
+          <button
+            onClick={() => setCustomAlert(null)}
+            className="btn btn-accent"
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            V redu
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Intercept ?view=results query parameter to render results in a new tab/window
+  const queryParams = new URLSearchParams(window.location.search);
+  if (queryParams.get('view') === 'results') {
+    const id = queryParams.get('id');
+    const dataStr = localStorage.getItem(id);
+    if (dataStr) {
+      try {
+        const previewData = JSON.parse(dataStr);
+        return (
+          <>
+            <div style={{ background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+              <ResultsPanel
+                results={previewData.results}
+                answers={previewData.answers}
+                categories={previewData.categories}
+                rules={previewData.rules}
+                isReadOnly={previewData.isReadOnly}
+                isLoggedIn={false}
+                onClose={() => {
+                  window.close();
+                }}
+              />
+            </div>
+            {renderCustomAlert()}
+          </>
+        );
+      } catch (err) {
+        console.error('Failed to parse results preview data:', err);
+      }
+    }
+  }
+
   if (appState === 'landing') {
-    return <LandingPage enterAsGuest={enterAsGuest} enterAsAdmin={enterAsAdmin} />;
+    return (
+      <>
+        <LandingPage
+          enterAsGuest={enterAsGuest}
+          enterAsAdmin={enterAsAdmin}
+          initialShowLogin={initialShowLogin}
+          prefillEmail={prefillEmail}
+          setPasswordEmail={setPasswordEmail}
+          clearSetPasswordEmail={() => setSetPasswordEmail('')}
+        />
+        {renderCustomAlert()}
+      </>
+    );
   }
 
   return (
-    <div id="app">
-      <Sidebar
-        currentView={currentView}
-        switchView={switchView}
-        isLoggedIn={isLoggedIn}
-        isOpen={isSidebarOpen}
-        user={user}
-        userRole={userRole}
-        setAppState={handleLogout}
-        viewType={viewType}
-        setViewType={setViewType}
-        assessmentMeta={assessmentMeta}
-      />
-
-      <div className="main-content">
-        <Header
-          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          isSidebarOpen={isSidebarOpen}
+    <>
+      <div id="app">
+        <Sidebar
+          currentView={currentView}
+          switchView={switchView}
+          isLoggedIn={isLoggedIn}
+          isOpen={isSidebarOpen}
+          user={user}
+          userRole={userRole}
+          setAppState={handleLogout}
+          viewType={viewType}
+          setViewType={setViewType}
+          assessmentMeta={assessmentMeta}
         />
-        <div className="page-view active">
-          {renderView()}
+
+        <div className="main-content">
+          <Header
+            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isSidebarOpen={isSidebarOpen}
+          />
+          <div className="page-view active">
+            {renderView()}
+          </div>
         </div>
       </div>
-    </div>
+      {renderCustomAlert()}
+    </>
   );
 }

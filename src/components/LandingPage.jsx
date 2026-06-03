@@ -1,21 +1,41 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
 
-export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
-  const [showAuth, setShowAuth] = useState(false);
-  const [authTab, setAuthTab] = useState('login'); // 'login' | 'register'
+export default function LandingPage({ enterAsGuest, enterAsAdmin, initialShowLogin, prefillEmail, setPasswordEmail, clearSetPasswordEmail }) {
+  const [showAuth, setShowAuth] = React.useState(initialShowLogin || false);
+  const [authTab, setAuthTab] = React.useState('login'); // 'login' | 'register'
 
   // Login state
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [loginUsername, setLoginUsername] = React.useState(prefillEmail || '');
+  const [loginPassword, setLoginPassword] = React.useState('');
+  const [loginError, setLoginError] = React.useState('');
 
   // Register state
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [regError, setRegError] = useState('');
+  const [regUsername, setRegUsername] = React.useState('');
+  const [regEmail, setRegEmail] = React.useState(prefillEmail || '');
+  const [regPassword, setRegPassword] = React.useState('');
+  const [regConfirm, setRegConfirm] = React.useState('');
+  const [regError, setRegError] = React.useState('');
+
+  // Set password state
+  const [newPasswordVal, setNewPasswordVal] = React.useState('');
+  const [confirmPasswordVal, setConfirmPasswordVal] = React.useState('');
+  const [setPasswordError, setSetPasswordError] = React.useState('');
+  const [setPasswordSuccess, setSetPasswordSuccess] = React.useState(false);
+
+  React.useEffect(() => {
+    if (initialShowLogin) {
+      setShowAuth(true);
+    }
+    if (prefillEmail) {
+      setLoginUsername(prefillEmail);
+      setRegEmail(prefillEmail);
+    }
+    if (setPasswordEmail) {
+      setAuthTab('set_password');
+      setShowAuth(true);
+    }
+  }, [initialShowLogin, prefillEmail, setPasswordEmail]);
 
   const openAuth = (tab = 'login') => {
     setAuthTab(tab);
@@ -28,6 +48,8 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
     setShowAuth(false);
     setLoginError('');
     setRegError('');
+    setSetPasswordError('');
+    if (clearSetPasswordEmail) clearSetPasswordEmail();
   };
 
   const handleLogin = async () => {
@@ -66,6 +88,36 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
     }
   };
 
+  const handleSetPassword = async () => {
+    setSetPasswordError('');
+    if (!newPasswordVal || !confirmPasswordVal) {
+      setSetPasswordError('Izpolnite vsa obvezna polja.');
+      return;
+    }
+    if (newPasswordVal.length < 6) {
+      setSetPasswordError('Geslo mora imeti vsaj 6 znakov.');
+      return;
+    }
+    if (newPasswordVal !== confirmPasswordVal) {
+      setSetPasswordError('Gesli se ne ujemata.');
+      return;
+    }
+    try {
+      await api.setUserPassword(setPasswordEmail, newPasswordVal);
+      setSetPasswordSuccess(true);
+      setTimeout(() => {
+        setAuthTab('login');
+        setLoginUsername(setPasswordEmail);
+        setSetPasswordSuccess(false);
+        setNewPasswordVal('');
+        setConfirmPasswordVal('');
+        if (clearSetPasswordEmail) clearSetPasswordEmail();
+      }, 2000);
+    } catch (err) {
+      setSetPasswordError(err.message || 'Nastavitev gesla ni uspela.');
+    }
+  };
+
   return (
     <div className="landing-container">
       <div className="landing-nav">
@@ -100,18 +152,26 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
         <div id="login-overlay" onClick={e => { if (e.target === e.currentTarget) closeAuth(); }}>
           <div className="card login-card">
             <div className="auth-tabs">
-              <button
-                className={`auth-tab-btn ${authTab === 'login' ? 'active' : ''}`}
-                onClick={() => { setAuthTab('login'); setLoginError(''); setRegError(''); }}
-              >
-                Prijava
-              </button>
-              <button
-                className={`auth-tab-btn ${authTab === 'register' ? 'active' : ''}`}
-                onClick={() => { setAuthTab('register'); setLoginError(''); setRegError(''); }}
-              >
-                Registracija
-              </button>
+              {authTab === 'set_password' ? (
+                <div style={{ padding: '10px', fontSize: '1rem', fontWeight: 'bold', color: 'var(--accent-color)', textAlign: 'center', width: '100%' }}>
+                  Nastavitev gesla
+                </div>
+              ) : (
+                <>
+                  <button
+                    className={`auth-tab-btn ${authTab === 'login' ? 'active' : ''}`}
+                    onClick={() => { setAuthTab('login'); setLoginError(''); setRegError(''); }}
+                  >
+                    Prijava
+                  </button>
+                  <button
+                    className={`auth-tab-btn ${authTab === 'register' ? 'active' : ''}`}
+                    onClick={() => { setAuthTab('register'); setLoginError(''); setRegError(''); }}
+                  >
+                    Registracija
+                  </button>
+                </>
+              )}
             </div>
 
             {authTab === 'login' ? (
@@ -158,7 +218,7 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
                   </span>
                 </div>
               </div>
-            ) : (
+            ) : authTab === 'register' ? (
               <div>
                 <p style={{ marginBottom: '18px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
                   Ustvarite nov račun za dostop do vseh funkcij platforme.
@@ -222,6 +282,51 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin }) {
                     Prijavite se
                   </span>
                 </div>
+              </div>
+            ) : (
+              <div>
+                <p style={{ marginBottom: '18px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                  Nastavite svoje novo geslo za e-poštni naslov <strong>{setPasswordEmail}</strong>.
+                </p>
+                {setPasswordSuccess ? (
+                  <div style={{ color: '#2ea043', background: 'rgba(46,160,67,0.1)', padding: '12px', borderRadius: '6px', textAlign: 'center', marginBottom: '14px' }}>
+                    Geslo je bilo uspešno nastavljeno! Preusmerjanje na prijavo...
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Novo geslo *</label>
+                      <input
+                        type="password"
+                        className="form-control"
+                        placeholder="Vsaj 6 znakov"
+                        value={newPasswordVal}
+                        onChange={e => setNewPasswordVal(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Potrdi novo geslo *</label>
+                      <input
+                        type="password"
+                        className="form-control"
+                        placeholder="••••••••"
+                        value={confirmPasswordVal}
+                        onChange={e => setConfirmPasswordVal(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSetPassword()}
+                      />
+                    </div>
+                    {setPasswordError && (
+                      <div style={{ color: 'var(--danger-color)', fontSize: '0.85rem', marginBottom: '14px', background: 'var(--danger-bg)', padding: '8px 12px', borderRadius: '6px' }}>
+                        {setPasswordError}
+                      </div>
+                    )}
+                    <div className="flex-between" style={{ gap: '10px' }}>
+                      <button className="btn btn-ghost" onClick={closeAuth}>Prekliči</button>
+                      <button className="btn btn-accent" onClick={handleSetPassword} style={{ flex: 1 }}>Nastavi geslo →</button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

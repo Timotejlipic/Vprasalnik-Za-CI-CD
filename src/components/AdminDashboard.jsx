@@ -1,13 +1,62 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, parseEmailToName } from '../api.js';
-import ResultsPanel from './ResultsPanel.jsx';
+import { convertConfigSectionsToCategories, openResultsInNewWindow } from '../utils.js';
 
 // Helper to determine score colors
 function scoreColor(score) {
   return score < 40 ? '#f85149' : score < 75 ? '#d29922' : '#2ea043';
 }
 
-export default function AdminDashboard({ pipelines = [], switchView }) {
+// Helper to synchronize local assignments with database-backed pipelines
+function syncAssignmentsWithPipelines(assignments, pipelines, users) {
+  let changed = false;
+  pipelines.forEach(p => {
+    const parts = (p.repoId || '').split('|');
+    const assessor = parts[0] || '';
+    const score = parts[1] ? Number(parts[1]) : 0;
+
+    const userObj = users.find(u => 
+      String(u.id) === String(p.user_id) || 
+      u.email?.toLowerCase() === assessor.toLowerCase() ||
+      u.username?.toLowerCase() === assessor.toLowerCase() ||
+      u.name?.toLowerCase() === assessor.toLowerCase() ||
+      (assessor && u.email && parseEmailToName(u.email).toLowerCase() === assessor.toLowerCase())
+    );
+
+    assignments.forEach(asg => {
+      const isUserMatch = (userObj && (String(asg.userId) === String(userObj.id) || asg.userEmail?.toLowerCase() === userObj.email?.toLowerCase())) ||
+                          (asg.userEmail?.toLowerCase() === assessor.toLowerCase()) ||
+                          (assessor && asg.userEmail && parseEmailToName(asg.userEmail).toLowerCase() === assessor.toLowerCase());
+      
+      const normalize = (u) => (u || '').trim().toLowerCase()
+        .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
+        .replace(/\.git$/, '')
+        .replace(/\/$/, '');
+
+      const isRepoMatch = normalize(asg.repoLink) === normalize(p.repoLink);
+
+      if (isUserMatch && isRepoMatch) {
+        const hasDifferences = asg.status !== 'completed' ||
+                               String(asg.pipelineId) !== String(p.id) ||
+                               asg.score !== score ||
+                               asg.level !== p.level ||
+                               JSON.stringify(asg.answers) !== JSON.stringify(p.answers);
+        if (hasDifferences) {
+          asg.status = 'completed';
+          asg.score = score;
+          asg.level = p.level || 1;
+          asg.pipelineId = p.id;
+          asg.answers = p.answers || null;
+          asg.completedAt = p.date || new Date().toISOString().split('T')[0];
+          changed = true;
+        }
+      }
+    });
+  });
+  return changed;
+}
+
+export default function AdminDashboard({ pipelines = [], switchView, questionnaires = [], rulesVersions = [], onPreviewAnswers }) {
   const [activeTab, setActiveTab] = useState('stats');
   
   // Data lists
@@ -19,7 +68,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
 
   // Form states
   const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('geslo123');
+
   const [newUserRole, setNewUserRole] = useState('user');
   const [createdUserInfo, setCreatedUserInfo] = useState(null);
   const [userError, setUserError] = useState('');
@@ -29,6 +78,33 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   const [newGroupRepos, setNewGroupRepos] = useState('');
   const [groupError, setGroupError] = useState('');
   const [groupSuccess, setGroupSuccess] = useState('');
+
+  // Selected versions for group creation
+  const [selectedGroupFormVer, setSelectedGroupFormVer] = useState('1.0');
+  const [selectedGroupRulesVer, setSelectedGroupRulesVer] = useState('1.0');
+
+  // Adding repository to existing group state
+  const [addingRepoToGroup, setAddingRepoToGroup] = useState(null);
+  const [newRepoLink, setNewRepoLink] = useState('');
+  const [selectedRepoFormVer, setSelectedRepoFormVer] = useState('1.0');
+  const [selectedRepoRulesVer, setSelectedRepoRulesVer] = useState('1.0');
+
+  // Initialize version defaults to latest
+  useEffect(() => {
+    if (questionnaires && questionnaires.length > 0) {
+      const latest = questionnaires[questionnaires.length - 1].version;
+      setSelectedGroupFormVer(latest);
+      setSelectedRepoFormVer(latest);
+    }
+  }, [questionnaires]);
+
+  useEffect(() => {
+    if (rulesVersions && rulesVersions.length > 0) {
+      const latest = rulesVersions[rulesVersions.length - 1].version;
+      setSelectedGroupRulesVer(latest);
+      setSelectedRepoRulesVer(latest);
+    }
+  }, [rulesVersions]);
 
   // Results detail modal
   const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -49,8 +125,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   }, [pipelines]);
 
   // Load all dashboard data
-  const loadDashboardData = async () => {
-    setLoading(true);
+  const loadDashboardData = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     try {
       const u = await api.adminGetUsers();
       const g = await api.adminGetGroups();
@@ -61,18 +139,82 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       
       setUsers(u || []);
       setGroups(g || []);
-      setAssignments(a || []);
       setCategories(c || []);
       setRules(r || []);
       setLocalPipelines(p || []);
+
+      // Auto-sync/heal missing assignments for groups on load
+      const currentGroups = g || [];
+      const currentUsers = u || [];
+      const currentAssignments = a || [];
+      let updatedAssignments = [...currentAssignments];
+      let changed = false;
+
+      currentGroups.forEach(group => {
+        group.userIds.forEach(userId => {
+          const userObj = currentUsers.find(x => String(x.id) === String(userId) || x.email?.toLowerCase() === userId.toLowerCase());
+          if (!userObj) return;
+
+          group.githubRepos.forEach(repoLink => {
+            const exists = updatedAssignments.some(asg => 
+              (String(asg.userId) === String(userObj.id) || asg.userEmail?.toLowerCase() === userObj.email?.toLowerCase()) &&
+              asg.repoLink.toLowerCase() === repoLink.toLowerCase()
+            );
+
+            if (!exists) {
+              let repoName = repoLink;
+              try {
+                const urlObj = new URL(repoLink);
+                const parts = urlObj.pathname.split('/').filter(Boolean);
+                if (parts.length >= 2) repoName = `${parts[0]}/${parts[1]}`;
+                else if (parts.length === 1) repoName = parts[0];
+              } catch {
+                repoName = repoLink.replace('https://github.com/', '');
+              }
+
+              updatedAssignments.push({
+                id: 'asgn_' + Math.random().toString(36).slice(2) + Date.now().toString(36),
+                userId: userObj.id,
+                userEmail: userObj.email,
+                userName: userObj.name,
+                repoLink,
+                repoName,
+                groupId: group.id,
+                groupName: group.name,
+                status: 'pending',
+                score: null,
+                level: null,
+                pipelineId: null,
+                answers: null,
+                createdAt: new Date().toISOString().split('T')[0]
+              });
+              changed = true;
+            }
+          });
+        });
+      });
+
+      const syncChanged = syncAssignmentsWithPipelines(updatedAssignments, p || [], u || []);
+      if (syncChanged) {
+        changed = true;
+      }
+
+      if (changed) {
+        localStorage.setItem('cicdq_offline_assignments', JSON.stringify(updatedAssignments));
+        setAssignments(updatedAssignments);
+      } else {
+        setAssignments(currentAssignments);
+      }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     }
-    setLoading(false);
+    if (!isBackground) {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadDashboardData();
+    loadDashboardData(false);
 
     // Dynamically sync dashboard data across tabs
     const handleStorage = (e) => {
@@ -82,18 +224,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         e.key === 'cicdq_offline_users' || 
         e.key === 'cicdq_offline_groups'
       ) {
-        loadDashboardData();
+        loadDashboardData(true);
       }
     };
     window.addEventListener('storage', handleStorage);
 
-    // Periodically refresh every 30s so the admin sees completions
-    // even from users in a different browser session (e.g. Incognito)
-    const refreshInterval = setInterval(() => loadDashboardData(), 30000);
-
     return () => {
       window.removeEventListener('storage', handleStorage);
-      clearInterval(refreshInterval);
     };
   }, []);
 
@@ -114,15 +251,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       setUserError('Vnesite veljaven Gmail naslov.');
       return;
     }
-    if (newUserPassword.length < 6) {
-      setUserError('Geslo mora imeti vsaj 6 znakov.');
-      return;
-    }
+    // Generate a random temporary password (user will set their own)
+    const tempPassword = 'tmp_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
     try {
       const created = await api.adminCreateUser({
         email: newUserEmail.trim(),
-        password: newUserPassword,
+        password: tempPassword,
         role: newUserRole
       });
       
@@ -131,19 +266,33 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       
       // Create invitation link
       const directLink = `${window.location.origin}${window.location.pathname}?invite_email=${encodeURIComponent(created.email)}`;
-      const emailBody = `Pozdravljeni, ${created.name}!\n\nDodani ste bili v sistem MaturityVault za ocenjevanje CI/CD cevovodov.\n\nDo svojega profila in dodeljenih nalog lahko neposredno dostopate preko naslednje povezave:\n${directLink}\n\nUporabniško ime: ${created.username}\nGeslo za vaš račun je: ${newUserPassword}\n\nLep pozdrav,\nVaš Administrator`;
+      const setPasswordLink = `${window.location.origin}${window.location.pathname}?set_password=${encodeURIComponent(created.email)}`;
+      const emailBody = `Pozdravljeni, ${created.name}!\n\nDodani ste bili v sistem MaturityVault za ocenjevanje CI/CD cevovodov.\n\nDo svojega profila in dodeljenih nalog lahko neposredno dostopate preko naslednje povezave:\n${directLink}\n\nUporabniško ime: ${created.username}\n\nCe zelite nastaviti lastno geslo za prijavo, kliknite na naslednjo povezavo:\n${setPasswordLink}\n\nLep pozdrav,\nVas Administrator`;
       
       setCreatedUserInfo({
         user: created,
         directLink,
+        setPasswordLink,
         emailBody
       });
       
       // Reset input fields
       setNewUserEmail('');
-      setNewUserPassword('geslo123');
     } catch (err) {
       setUserError(err.message || 'Napaka pri ustvarjanju uporabnika.');
+    }
+  };
+
+  // Handle user deletion
+  const handleDeleteUser = async (userId, userName) => {
+    if (window.confirm(`Ali ste prepričani, da želite izbrisati uporabnika "${userName}"? S tem ga boste odstranili iz vseh skupin in izbrisali njegove naloge.`)) {
+      try {
+        await api.adminDeleteUser(userId);
+        // Refresh data silently in background to update groups & assignments
+        await loadDashboardData(true);
+      } catch (err) {
+        alert(err.message || 'Napaka pri brisanju uporabnika.');
+      }
     }
   };
 
@@ -161,7 +310,6 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         <td>${esc(u.name)}</td>
         <td>${esc(u.username)}</td>
         <td>${esc(u.email)}</td>
-        <td>${esc(u.password)}</td>
         <td>${u.role === 'admin' ? 'Administrator' : 'Uporabnik'}</td>
       </tr>`).join('');
 
@@ -174,7 +322,6 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               <th>Ime in priimek</th>
               <th>Uporabniško ime</th>
               <th>Gmail naslov</th>
-              <th>Geslo</th>
               <th>Vloga</th>
             </tr>
           </thead>
@@ -215,7 +362,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       .filter(r => r !== '' && r.includes('github.com'));
 
     if (repos.length === 0) {
-      setGroupError('Vnesite veljavne GitHub povezave (npr. https://github.com/org/repo).');
+      setGroupError('Vnesite veljavne GitHub povezave (npr. https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD).');
       return;
     }
 
@@ -223,7 +370,9 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       await api.adminCreateGroup({
         name: newGroupName.trim(),
         userIds: selectedGroupUsers,
-        githubRepos: repos
+        githubRepos: repos,
+        formVersion: selectedGroupFormVer,
+        rulesVersion: selectedGroupRulesVer
       });
 
       setGroupSuccess(`Skupina "${newGroupName}" je bila uspešno ustvarjena in naloge so bile dodeljene!`);
@@ -232,9 +381,34 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       setNewGroupRepos('');
       
       // Reload everything to update progress meters
-      await loadDashboardData();
+      await loadDashboardData(true);
     } catch (err) {
       setGroupError(err.message || 'Napaka pri ustvarjanju skupine.');
+    }
+  };
+
+  // Add repository to existing group with configured versions
+  const handleSaveRepoToGroup = async () => {
+    if (!newRepoLink || !newRepoLink.trim()) {
+      alert('Prosimo, vnesite povezavo do GitHub repozitorija.');
+      return;
+    }
+    if (!newRepoLink.trim().includes('github.com')) {
+      alert('Prosimo, vnesite veljaven GitHub link (npr. https://github.com/owner/repo).');
+      return;
+    }
+    try {
+      await api.adminAddGroupRepo(
+        addingRepoToGroup.id,
+        newRepoLink.trim(),
+        selectedRepoFormVer,
+        selectedRepoRulesVer
+      );
+      alert('Repozitorij uspešno dodan skupini in naloge dodeljene članom!');
+      setAddingRepoToGroup(null);
+      await loadDashboardData(true);
+    } catch (err) {
+      alert('Napaka pri dodajanju repozitorija: ' + err.message);
     }
   };
 
@@ -242,9 +416,45 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   const inspectAssignment = async (asgn) => {
     if (!asgn.answers) return;
     try {
-      const results = await api.evaluate(asgn.answers, categories, rules);
-      setEvaluationResults(results);
-      setSelectedAssignment(asgn);
+      const formVer = asgn.formVersion || '1.0';
+      const rVer = asgn.rulesVersion || '1.0';
+
+      let activeCats = categories;
+      let activeRules = rules;
+
+      if (questionnaires && questionnaires.length > 0) {
+        const matchedQ = questionnaires.find(v => v.version === formVer);
+        if (matchedQ) {
+          activeCats = convertConfigSectionsToCategories(matchedQ.sections || []);
+        }
+      }
+
+      if (rulesVersions && rulesVersions.length > 0) {
+        const matchedR = rulesVersions.find(v => v.version === rVer);
+        if (matchedR) {
+          activeRules = matchedR.levels || matchedR;
+        }
+      }
+
+      const results = await api.evaluate(asgn.answers, activeCats, activeRules);
+
+      if (onPreviewAnswers) {
+        onPreviewAnswers({
+          answers: asgn.answers,
+          version: formVer,
+          rulesVersion: rVer,
+          name: `Poročilo za uporabnika: ${asgn.userName || asgn.userEmail || ''}`
+        });
+      } else {
+        openResultsInNewWindow({
+          answers: asgn.answers,
+          results: results,
+          categories: activeCats,
+          rules: activeRules,
+          isReadOnly: true,
+          title: `Poročilo za uporabnika: ${asgn.userName || asgn.userEmail || ''}`
+        });
+      }
     } catch (err) {
       alert('Napaka pri izračunu zrelosti: ' + err.message);
     }
@@ -279,7 +489,10 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
   const userProgressStats = useMemo(() => {
     const standardUsers = users.filter(u => u.role === 'user');
     return standardUsers.map(u => {
-      const userAsgns = assignments.filter(a => a.userId === u.id);
+      const userAsgns = assignments.filter(a => 
+        String(a.userId) === String(u.id) || 
+        (a.userEmail && u.email && a.userEmail.toLowerCase() === u.email.toLowerCase())
+      );
       
       // Enrich assignments with global pipelines data dynamically
       const enrichedAsgns = userAsgns.map(asgn => {
@@ -410,7 +623,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
         <div className="pulse-animation" style={{ color: 'var(--text-secondary)' }}>
-          Nalagam administratorske podatke…
+          Nalaganje...
         </div>
       </div>
     );
@@ -421,8 +634,8 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <h2 className="page-title" style={{ margin: 0 }}>Admin Nadzorna Plošča</h2>
         <button
-          onClick={loadDashboardData}
-          title="Osveži podatke (samodejno vsakih 30s)"
+          onClick={() => loadDashboardData(true)}
+          title="Osveži podatke"
           style={{
             background: 'rgba(99,102,241,0.15)',
             border: '1px solid rgba(99,102,241,0.3)',
@@ -440,7 +653,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.25)'}
           onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.15)'}
         >
-          🔄 Osveži
+          Osveži
         </button>
       </div>
 
@@ -453,9 +666,9 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
         overflowX: 'auto',
       }}>
         {[
-          { id: 'stats', label: 'Spremljanje napredka', icon: '📈' },
-          { id: 'users', label: 'Upravljanje uporabnikov', icon: '👥' },
-          { id: 'groups', label: 'Skupine & Dodelitve', icon: '📋' }
+          { id: 'stats', label: 'Spremljanje napredka'},
+          { id: 'users', label: 'Upravljanje uporabnikov'},
+          { id: 'groups', label: 'Skupine & Dodelitve'}
         ].map(tab => (
           <button
             key={tab.id}
@@ -525,7 +738,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 style={{ fontSize: '0.78rem', padding: '8px 12px' }}
                 onClick={() => { setStatsUserFilter(''); setStatsRepoFilter(''); setStatsDateFilter(''); }}
               >
-                ✕ Počisti filtre
+                X Počisti filtre
               </button>
             )}
           </div>
@@ -544,7 +757,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 </div>
               ) : filteredUserStats.length === 0 ? (
                 <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  🔍 Noben uporabnik ne ustreza filtrom.
+                   Noben uporabnik ne ustreza filtrom.
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
@@ -553,7 +766,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                         <div>
                           <h4 style={{ fontSize: '1.05rem', margin: 0, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span>👤 {stat.user.name}</span>
+                            <span> {stat.user.name}</span>
                             {stat.total > 0 && (
                               <button 
                                 className="btn btn-accent" 
@@ -642,7 +855,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                                     <td style={{ textAlign: 'right' }}>
                                       {done ? (
                                         <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }} onClick={() => inspectAssignment(asgn)}>
-                                          🔍 Poglej odgovore
+                                           Poglej odgovore
                                         </button>
                                       ) : (
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Čaka na oceno</span>
@@ -661,57 +874,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               )}
             </div>
 
-            {/* Overview by Repositories */}
-            <div>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                Pregled napredka po repozitorijih
-              </h3>
-              {repoProgressStats.length === 0 ? (
-                <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Ni dodeljenih repozitorijev.
-                </div>
-              ) : filteredRepoStats.length === 0 ? (
-                <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  🔍 Noben repozitorij ne ustreza filtrom.
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-                  {filteredRepoStats.map(stat => (
-                    <div key={stat.repoLink} className="card" style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-                        <div>
-                          <h4 style={{ fontSize: '1.05rem', margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            📂 {stat.repoName}
-                          </h4>
-                          <a href={stat.repoLink} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--accent-color)' }}>
-                            🔗 {stat.repoLink}
-                          </a>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ 
-                            fontSize: '0.9rem', 
-                            fontWeight: 700, 
-                            color: stat.pct === 100 ? 'var(--success-color)' : stat.pct > 0 ? 'var(--warning-color)' : 'var(--text-secondary)' 
-                          }}>
-                            {stat.completed} od {stat.total} ocenjevalcev ({stat.pct}%)
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* Repo Progress Bar */}
-                      <div style={{ height: '6px', background: 'var(--panel-border)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ 
-                          width: `${stat.pct}%`, 
-                          height: '100%', 
-                          background: stat.pct === 100 ? 'var(--success-color)' : stat.pct > 0 ? 'var(--warning-color)' : 'var(--text-secondary)',
-                          transition: 'width 0.4s ease'
-                        }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
           </div>
         </div>
@@ -742,6 +905,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                     <th>Uporabnik (Ime & Priimek)</th>
                     <th>Gmail naslov</th>
                     <th>Vloga</th>
+                    <th style={{ textAlign: 'right' }}>Akcije</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -758,6 +922,16 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                         <span className={`badge ${u.role === 'admin' ? 'badge-blue' : 'badge-ghost'}`} style={{ fontSize: '0.72rem' }}>
                           {u.role === 'admin' ? 'Administrator' : 'Uporabnik'}
                         </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--danger-color)', padding: '4px 8px', fontSize: '0.75rem' }}
+                          onClick={() => handleDeleteUser(u.id, u.name || u.email)}
+                          title="Izbriši uporabnika"
+                        >
+                          Briši
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -783,22 +957,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 />
                 {newUserEmail && (
                   <div style={{ marginTop: '6px', fontSize: '0.8rem', padding: '6px 10px', background: 'rgba(88,166,255,0.06)', border: '1px dashed rgba(88,166,255,0.2)', borderRadius: '6px', color: 'var(--text-primary)' }}>
-                    ✨ Auto-extracted Name & Username:<br />
+                     Auto-extracted Name & Username:<br />
                     <strong>{extractedName || 'Neznano'}</strong>
                   </div>
                 )}
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Geslo za dostop *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={newUserPassword}
-                  onChange={e => setNewUserPassword(e.target.value)}
-                  placeholder="Min. 6 znakov"
-                />
-              </div>
+
 
               <div className="form-group">
                 <label className="form-label">Vloga v sistemu</label>
@@ -822,7 +987,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               )}
 
               <button className="btn btn-accent" style={{ width: '100%', padding: '10px' }} onClick={handleCreateUser}>
-                ➕ Ustvari račun uporabnika
+                + Ustvari račun uporabnika
               </button>
             </div>
 
@@ -869,7 +1034,7 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                     navigator.clipboard?.writeText(createdUserInfo.emailBody);
                     alert('Sporočilo povabila kopirano!');
                   }}>
-                    ✉ Kopiraj e-sporočilo
+                     Kopiraj e-sporočilo
                   </button>
                 </div>
               </div>
@@ -896,9 +1061,28 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                   const groupAsgns = assignments.filter(a => a.groupId === group.id);
                   return (
                     <div key={group.id} className="card" style={{ padding: '16px' }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        👥 {group.name}
-                      </h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                           {group.name}
+                        </h4>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ color: 'var(--danger-color)', padding: '4px 10px', fontSize: '0.78rem', minWidth: 'auto', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)' }}
+                          title="Izbriši skupino in vse njene dodelitve"
+                          onClick={async () => {
+                            if (window.confirm(`Ali ste prepričani, da želite izbrisati skupino ${group.name}? (S tem boste izbrisali tudi vse dodelitve te skupine)`)) {
+                              try {
+                                await api.adminDeleteGroup(group.id);
+                                await loadDashboardData(true);
+                              } catch (err) {
+                                alert('Napaka: ' + err.message);
+                              }
+                            }
+                          }}
+                        >
+                          Izbriši skupino
+                        </button>
+                      </div>
                       
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                         Ustvarjeno: <strong>{group.createdAt}</strong>
@@ -908,16 +1092,56 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                         {/* Users */}
                         <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--panel-border)', padding: '10px', borderRadius: '6px' }}>
                           <strong style={{ color: 'var(--accent-color)' }}>Člani skupine:</strong>
-                          <ul style={{ paddingLeft: '16px', marginTop: '6px', marginBottom: 0 }}>
-                            {group.userIds.map(uid => (
-                              <li key={uid}>{users.find(u => u.id === uid)?.name || uid}</li>
-                            ))}
+                          <ul style={{ padding: 0, listStyle: 'none', marginTop: '6px', marginBottom: 0 }}>
+                            {group.userIds.map(uid => {
+                              const uObj = users.find(u => 
+                                String(u.id) === String(uid) || 
+                                (u.email && u.email.toLowerCase() === uid.toLowerCase()) || 
+                                (u.username && u.username.toLowerCase() === uid.toLowerCase())
+                              );
+                              return (
+                                <li key={uid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0' }}>
+                                  <span>{uObj ? uObj.name : uid}</span>
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ color: 'var(--danger-color)', padding: '2px 6px', fontSize: '0.72rem', minWidth: 'auto', background: 'transparent' }}
+                                    title="Odstrani člana iz skupine"
+                                    onClick={async () => {
+                                      if (window.confirm(`Ali ste prepričani, da želite odstraniti člana ${uObj?.name || uid} iz skupine ${group.name}? (S tem boste izbrisali tudi njegove nedokončane naloge)`)) {
+                                        try {
+                                          await api.adminRemoveGroupMember(group.id, uid);
+                                          await loadDashboardData(true);
+                                        } catch (err) {
+                                          alert('Napaka: ' + err.message);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    X
+                                  </button>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                         {/* Repos */}
                         <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--panel-border)', padding: '10px', borderRadius: '6px' }}>
-                          <strong style={{ color: 'var(--accent-color)' }}>Dodeljeni repozitoriji:</strong>
-                          <ul style={{ paddingLeft: '16px', marginTop: '6px', marginBottom: 0, wordBreak: 'break-all' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                            <strong style={{ color: 'var(--accent-color)' }}>Dodeljeni repozitoriji:</strong>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ padding: '2px 8px', fontSize: '0.72rem', minWidth: 'auto', background: 'rgba(99,102,241,0.12)', color: 'var(--accent-color)', fontWeight: 600 }}
+                              onClick={() => {
+                                setAddingRepoToGroup(group);
+                                setNewRepoLink('');
+                                if (questionnaires.length > 0) setSelectedRepoFormVer(questionnaires[questionnaires.length - 1].version);
+                                if (rulesVersions.length > 0) setSelectedRepoRulesVer(rulesVersions[rulesVersions.length - 1].version);
+                              }}
+                            >
+                              + Dodaj link
+                            </button>
+                          </div>
+                          <ul style={{ paddingLeft: '16px', marginTop: '4px', marginBottom: 0, wordBreak: 'break-all' }}>
                             {group.githubRepos.map((repo, i) => (
                               <li key={i}>
                                 <a href={repo} target="_blank" rel="noreferrer" style={{ color: 'var(--text-primary)' }}>
@@ -956,13 +1180,13 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                               try {
                                 await api.adminAddGroupMember(group.id, uid);
                                 alert('Uporabnik uspešno dodan v skupino in naloge dodeljene!');
-                                await loadDashboardData();
+                                await loadDashboardData(true);
                               } catch (err) {
                                 alert('Napaka: ' + err.message);
                               }
                             }}
                           >
-                            ➕ Dodaj
+                            + Dodaj
                           </button>
                         </div>
                       )}
@@ -1033,6 +1257,37 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
                 />
               </div>
 
+              {/* Form & Rules versions select */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Verzija Vprašalnika *</label>
+                  <select 
+                    className="form-control" 
+                    value={selectedGroupFormVer} 
+                    onChange={e => setSelectedGroupFormVer(e.target.value)}
+                    style={{ background: 'var(--panel-bg)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', padding: '8px', borderRadius: '6px' }}
+                  >
+                    {questionnaires.map(q => (
+                      <option key={q.version} value={q.version}>Verzija {q.version}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Verzija Pravil Zrelosti *</label>
+                  <select 
+                    className="form-control" 
+                    value={selectedGroupRulesVer} 
+                    onChange={e => setSelectedGroupRulesVer(e.target.value)}
+                    style={{ background: 'var(--panel-bg)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', padding: '8px', borderRadius: '6px' }}
+                  >
+                    {rulesVersions.map(rv => (
+                      <option key={rv.version} value={rv.version}>Verzija {rv.version}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {groupError && (
                 <div style={{ 
                   color: 'var(--danger-color)', 
@@ -1061,24 +1316,76 @@ export default function AdminDashboard({ pipelines = [], switchView }) {
               )}
 
               <button className="btn btn-accent" style={{ width: '100%', padding: '10px' }} onClick={handleCreateGroup}>
-                🚀 Ustvari skupino & dodeli ocenjevanja
+                 Ustvari skupino & dodeli ocenjevanja
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Results Detail Modal Overlay */}
-      {selectedAssignment && evaluationResults && (
-        <ResultsPanel
-          results={evaluationResults}
-          answers={selectedAssignment.answers || {}}
-          categories={categories}
-          rules={rules}
-          isReadOnly={true}
-          onClose={() => { setSelectedAssignment(null); setEvaluationResults(null); }}
-        />
+      {/* Add Repository to Group Modal Overlay */}
+      {addingRepoToGroup && (
+        <div className="modal-overlay" onClick={() => setAddingRepoToGroup(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+              + Dodaj nov GitHub repozitorij
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Dodajanje novega ocenjevanja za skupino <strong style={{ color: 'var(--accent-color)' }}>{addingRepoToGroup.name}</strong>.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>GitHub povezava do repozitorija *</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="https://github.com/owner/repo" 
+                  value={newRepoLink} 
+                  onChange={e => setNewRepoLink(e.target.value)} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>Verzija Vprašalnika *</label>
+                  <select 
+                    className="form-control" 
+                    value={selectedRepoFormVer} 
+                    onChange={e => setSelectedRepoFormVer(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: 'var(--text-primary)' }}
+                  >
+                    {questionnaires.map(q => (
+                      <option key={q.version} value={q.version}>Verzija {q.version}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', display: 'block' }}>Verzija Pravil Zrelosti *</label>
+                  <select 
+                    className="form-control" 
+                    value={selectedRepoRulesVer} 
+                    onChange={e => setSelectedRepoRulesVer(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', color: 'var(--text-primary)' }}
+                  >
+                    {rulesVersions.map(rv => (
+                      <option key={rv.version} value={rv.version}>Verzija {rv.version}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button className="btn btn-ghost" onClick={() => setAddingRepoToGroup(null)}>Prekliči</button>
+                <button className="btn btn-accent" onClick={handleSaveRepoToGroup}> Dodaj repozitorij</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
+
     </div>
   );
 }

@@ -73,8 +73,8 @@ function ItemModal({ item, onSave, onClose }) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card">
         <div className="modal-header">
-          <h3>{item ? '✎ Uredi element' : '＋ Nov element'}</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <h3>{item ? ' Uredi element' : '＋ Nov element'}</h3>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
         <div className="form-group">
@@ -91,20 +91,16 @@ function ItemModal({ item, onSave, onClose }) {
 
         <div className="form-group">
           <label className="form-label">Tip odgovora</label>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="flex gap-2 flex-wrap">
             {types.map(t => {
               const badge = typeBadge(t.value);
               return (
                 <label
                   key={t.value}
-                  className="checkbox-label"
+                  className="checkbox-label flex items-center p-[4px_10px] rounded-[7px] cursor-pointer transition-all duration-150"
                   style={{
                     border: `1px solid ${type === t.value ? 'var(--accent-color)' : 'var(--panel-border)'}`,
-                    borderRadius: '7px',
-                    padding: '4px 10px',
                     background: type === t.value ? 'rgba(88,166,255,0.1)' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
                   }}
                 >
                   <input
@@ -112,7 +108,7 @@ function ItemModal({ item, onSave, onClose }) {
                     name="item-type"
                     checked={type === t.value}
                     onChange={() => setType(t.value)}
-                    style={{ marginRight: '5px' }}
+                    className="mr-[5px]"
                   />
                   <span className={`badge ${badge.cls}`} style={{ fontSize: '0.72rem' }}>{badge.label}</span>
                 </label>
@@ -158,7 +154,7 @@ function ExportSuperCategoryModal({ categories, onExport, onClose }) {
       <div className="modal-card" style={{ maxWidth: '400px' }}>
         <div className="modal-header">
           <h3>⇧ Izvozi nadkategorijo</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
         <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -205,8 +201,8 @@ function CategoryModal({ cat, categories = [], onSave, onClose }) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card" style={{ maxWidth: '420px' }}>
         <div className="modal-header">
-          <h3>{cat ? '✎ Uredi kategorijo' : '＋ Nova kategorija'}</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <h3>{cat ? ' Uredi kategorijo' : '＋ Nova kategorija'}</h3>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
         <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -262,8 +258,8 @@ function ParentModal({ existingName, onSave, onClose }) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card" style={{ maxWidth: '400px' }}>
         <div className="modal-header">
-          <h3>{existingName ? '✎ Preimenuj nadkategorijo' : '＋ Nova nadkategorija'}</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <h3>{existingName ? ' Preimenuj nadkategorijo' : '＋ Nova nadkategorija'}</h3>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
         <div className="form-group" style={{ marginBottom: '16px' }}>
           <label className="form-label">Ime nadkategorije *</label>
@@ -294,69 +290,53 @@ function BuilderItemRow({ item, depth = 0, onEdit, onDelete, onAddSub, isAdmin }
   const badge = typeBadge(item.type);
 
   return (
-    <div style={{
-      marginLeft: depth > 0 ? `${depth * 18}px` : 0,
-      borderLeft: depth > 0 ? '2px solid rgba(88,166,255,0.18)' : 'none',
-      paddingLeft: depth > 0 ? '10px' : 0,
-    }}>
+    <div
+      className={`pl-2.5 ${depth > 0 ? "border-l-2 border-[rgba(88,166,255,0.18)]" : ""}`}
+      style={{ marginLeft: depth > 0 ? `${depth * 18}px` : 0 }}
+    >
       {/* Item row */}
-      <div
-        className="builder-item-row"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+      <div className="builder-item-row border-b border-[rgba(255,255,255,0.04)]">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           {hasChildren && (
             <span
-              style={{ cursor: 'pointer', opacity: 0.6, fontSize: '0.85rem', flexShrink: 0 }}
+              className="cursor-pointer opacity-60 text-[0.85rem] shrink-0"
               onClick={() => setSubOpen(v => !v)}
               title={subOpen ? 'Skrči' : 'Razširi'}
             >
               {subOpen ? '▾' : '▸'}
             </span>
           )}
-          {!hasChildren && <span style={{ width: '14px', flexShrink: 0 }} />}
-          <span style={{ fontSize: '0.88rem', flex: 1, minWidth: 0, fontWeight: depth === 0 ? 600 : 400 }}>
+          {!hasChildren && <span className="w-3.5 shrink-0" />}
+          <span className={`text-[0.88rem] flex-1 min-w-0 ${depth === 0 ? "font-semibold" : "font-normal"}`}>
             {item.label}
           </span>
           {item.description && (
             <span
               title={item.description}
-              style={{
-                cursor: 'help',
-                color: 'var(--accent-color)',
-                fontSize: '0.68rem',
-                background: 'rgba(88,166,255,0.15)',
-                width: '15px', height: '15px',
-                borderRadius: '50%',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 'bold', flexShrink: 0,
-              }}
+              className="cursor-help text-[var(--accent-color)] text-[0.68rem] bg-[rgba(88,166,255,0.15)] w-[15px] h-[15px] rounded-full inline-flex items-center justify-center font-bold shrink-0"
             >?</span>
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: '10px' }}>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2.5">
           <span className={`badge ${badge.cls}`} style={{ fontSize: '0.7rem' }}>{badge.label}</span>
           {isAdmin && (
             <>
               <button
-                className="btn btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '2px 7px' }}
+                className="btn btn-ghost text-[0.75rem] p-[2px_7px]"
                 onClick={() => onAddSub(item.id)}
                 title="Dodaj pod-element"
               >＋</button>
               <button
-                className="btn btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '2px 7px' }}
+                className="btn btn-ghost text-[0.75rem] p-[2px_7px]"
                 onClick={() => onEdit(item)}
                 title="Uredi"
-              >✎</button>
+              ></button>
               <button
-                className="btn btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '2px 7px', color: 'var(--danger-color)' }}
+                className="btn btn-ghost text-[0.75rem] p-[2px_7px] text-[var(--danger-color)]"
                 onClick={() => onDelete(item.id)}
                 title="Izbriši"
-              >✕</button>
+              >X</button>
             </>
           )}
         </div>
@@ -516,6 +496,30 @@ export default function Builder({
     a.download = `${superCatName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_config.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!builderVersion) return;
+    if (!window.confirm(`Ali ste prepričani, da želite izbrisati celoten vprašalnik verzije ${builderVersion}?`)) return;
+    try {
+      await api.deleteQuestionnaireVersion(builderVersion);
+      alert(`Verzija vprašalnika ${builderVersion} uspešno izbrisana.`);
+      if (refreshQuestionnaires) {
+        const remaining = await refreshQuestionnaires();
+        if (remaining && remaining.length > 0) {
+          const nextV = remaining[remaining.length - 1].version;
+          setBuilderVersion(nextV);
+          if (setSelectedVersion) setSelectedVersion(nextV);
+          if (loadCategoriesForVersion) loadCategoriesForVersion(nextV);
+        } else {
+          setBuilderVersion('');
+          if (setSelectedVersion) setSelectedVersion(null);
+          setCategories([]);
+        }
+      }
+    } catch (err) {
+      alert(`Napaka pri brisanju: ${err.message}`);
+    }
   };
 
   const saveQuestionnaireVersion = async (updatedCategories) => {
@@ -722,16 +726,7 @@ export default function Builder({
 
       {/* Version selector */}
       {questionnaires.length > 0 && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          marginBottom: '14px',
-          padding: '10px 14px',
-          background: 'rgba(88,166,255,0.05)',
-          borderRadius: '8px',
-          border: '1px solid rgba(88,166,255,0.12)',
-        }}>
+        <div className="flex items-center gap-2.5 mb-3.5 p-[10px_14px] bg-[rgba(88,166,255,0.05)] rounded-lg border border-[rgba(88,166,255,0.12)]">
           <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', flexShrink: 0 }}>
             Aktivna verzija:
           </span>
@@ -761,6 +756,23 @@ export default function Builder({
               </option>
             ))}
           </select>
+          {isAdmin && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleDeleteVersion}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.8rem',
+                backgroundColor: 'var(--danger-color)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              Izbriši celoten vprašalnik
+            </button>
+          )}
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Uvozite novo konfiguracijo za dodajanje verzije
           </span>
@@ -824,7 +836,7 @@ export default function Builder({
                       style={{ fontSize: '0.75rem', padding: '3px 8px' }}
                       onClick={e => { e.stopPropagation(); setParentModal({ superTitle, existing: superTitle }); }}
                       title="Preimenuj nadkategorijo"
-                    >✎</button>
+                    ></button>
                     <button
                       className="btn btn-ghost"
                       style={{ fontSize: '0.75rem', padding: '3px 8px' }}
@@ -871,13 +883,13 @@ export default function Builder({
                                 style={{ fontSize: '0.78rem', padding: '4px 10px' }}
                                 onClick={() => setCatModal({ catIdx: originalIndex })}
                                 title="Uredi kategorijo"
-                              >✎</button>
+                              ></button>
                               <button
                                 className="btn btn-primary"
                                 style={{ fontSize: '0.78rem', padding: '4px 8px' }}
                                 onClick={() => deleteCategory(originalIndex)}
                                 title="Izbriši kategorijo"
-                              >✕</button>
+                              >X</button>
                             </div>
                           )}
                         </div>

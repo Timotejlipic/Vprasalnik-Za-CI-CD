@@ -117,10 +117,94 @@ int main()
     }
 
     // =========================================================================
+    // Auto-seed default rules configs
+    // =========================================================================
+    try
+    {
+        auto conn = db->acquire();
+        pqxx::work txn(*conn);
+        txn.exec(
+            "CREATE TABLE IF NOT EXISTS rules_configs ("
+            "  id BIGSERIAL PRIMARY KEY,"
+            "  version VARCHAR(50) NOT NULL UNIQUE,"
+            "  title VARCHAR(255) NOT NULL,"
+            "  description TEXT,"
+            "  levels JSONB NOT NULL DEFAULT '[]'::jsonb,"
+            "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            "  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            ")");
+        txn.commit();
+
+        pqxx::work txn2(*conn);
+        const auto r_rules = txn2.exec("SELECT COUNT(*) FROM rules_configs");
+        const long rules_count = r_rules[0][0].as<long>();
+        txn2.commit();
+
+        if (rules_count == 0)
+        {
+            std::cout << "[cicdq C++] rules_configs table is empty, auto-seeding...\n";
+            
+            // Seed v1.0 rules
+            std::ifstream f1("/app/maturity_rules.json");
+            if (!f1.is_open()) {
+                f1.open("maturity_rules.json");
+            }
+            if (f1.is_open())
+            {
+                nlohmann::json r1;
+                f1 >> r1;
+                pqxx::work txn_s1(*conn);
+                txn_s1.exec_params(
+                    "INSERT INTO rules_configs (version, title, description, levels) VALUES ($1, $2, $3, $4)",
+                    r1.value("version", "1.0"),
+                    r1.value("title", "CI/CD Pravila v1.0"),
+                    r1.value("description", ""),
+                    r1.value("levels", nlohmann::json::array()).dump()
+                );
+                txn_s1.commit();
+                std::cout << "[cicdq C++] Successfully seeded rules version 1.0\n";
+            }
+
+            // Seed v2.0 rules
+            std::ifstream f2("/app/maturity_rules2.json");
+            if (!f2.is_open()) {
+                f2.open("maturity_rules2.json");
+            }
+            if (f2.is_open())
+            {
+                nlohmann::json r2;
+                f2 >> r2;
+                pqxx::work txn_s2(*conn);
+                txn_s2.exec_params(
+                    "INSERT INTO rules_configs (version, title, description, levels) VALUES ($1, $2, $3, $4)",
+                    r2.value("version", "2.0"),
+                    r2.value("title", "Agile & Scrum Pravila v2.0"),
+                    r2.value("description", ""),
+                    r2.value("levels", nlohmann::json::array()).dump()
+                );
+                txn_s2.commit();
+                std::cout << "[cicdq C++] Successfully seeded rules version 2.0\n";
+            }
+        }
+        else
+        {
+            std::cout << "[cicdq C++] rules_configs already has " << rules_count << " rows, skipping seeding.\n";
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[cicdq C++] Error during rules_configs table migration/seeding: " << e.what() << "\n";
+    }
+
+    // =========================================================================
     // HTTP server
     // =========================================================================
 
     httplib::Server server;
+
+    server.set_logger([](const httplib::Request& req, const httplib::Response& res) {
+        std::cout << "[cicdq C++] " << req.method << " " << req.path << " -> " << res.status << std::endl;
+    });
 
     // -------------------------------------------------------------------------
     // CORS pre-flight  — must be registered before any route handler

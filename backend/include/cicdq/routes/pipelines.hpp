@@ -39,16 +39,16 @@ inline void register_pipeline_routes(httplib::Server& server, Store& store,
         const auto user = extract_user(req, secret);
         if (!user) { send_err(res, 401, "Authentication required."); return; }
 
-        std::vector<Pipeline> list;
-        if (is_admin(*user))
+        if (user->role == "admin")
         {
-            list = store.find_all_pipelines();
+            const auto list = store.find_all_pipelines();
+            send_json(res, 200, nlohmann::json(list));
         }
         else
         {
-            list = store.find_pipelines(user->id);
+            const auto list = store.find_pipelines(user->id);
+            send_json(res, 200, nlohmann::json(list));
         }
-        send_json(res, 200, nlohmann::json(list));
     });
 
     // =========================================================================
@@ -97,7 +97,7 @@ inline void register_pipeline_routes(httplib::Server& server, Store& store,
         const auto        p  = store.find_pipeline_by_id(id);
 
         if (!p)                        { send_err(res, 404, "Pipeline not found."); return; }
-        if (p->user_id != user->id)    { send_err(res, 403, "Access denied.");      return; }
+        if (p->user_id != user->id && user->role != "admin")    { send_err(res, 403, "Access denied.");      return; }
 
         send_json(res, 200, nlohmann::json(*p));
     });

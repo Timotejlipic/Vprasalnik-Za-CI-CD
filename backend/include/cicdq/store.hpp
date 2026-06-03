@@ -73,6 +73,22 @@ class Store
         return f.is_null() ? std::string{} : f.as<std::string>();
     }
 
+    static std::string _json_str(const nlohmann::json& j, const std::string& key, const std::string& fallback = "")
+    {
+        if (!j.contains(key)) return fallback;
+        const auto& val = j.at(key);
+        if (val.is_string()) return val.get<std::string>();
+        if (val.is_number_integer()) return std::to_string(val.get<long long>());
+        if (val.is_number_float()) {
+            double d = val.get<double>();
+            std::string s = std::to_string(d);
+            s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+            if (s.back() == '.') s.pop_back();
+            return s;
+        }
+        return fallback;
+    }
+
     static long _to_long(const std::string& s)
     {
         try
@@ -245,6 +261,67 @@ class Store
         }
     }
 
+    // Upsert one questionnaire item node (avoiding key conflict) and recurse into its options/children.
+    void _upsert_item(pqxx::work& txn, long cfg, std::optional<long> parent_id,
+                      const nlohmann::json& node, int depth, int sort_order,
+                      const std::unordered_map<std::string, long>& existing_keys,
+                      std::vector<long>& processed_ids) const
+    {
+        std::string key = node.value("id", node.value("key", std::string{}));
+        if (key.empty()) key = generate_uuid4();
+
+        const std::string label = node.value("label", "");
+        const std::string desc  = node.value("description", "");
+        const std::string type  = _norm_type(node.value("type", "text"));
+
+        long item_id = 0;
+        auto it = existing_keys.find(key);
+        if (it != existing_keys.end())
+        {
+            item_id = it->second;
+            // Update the existing item
+            txn.exec_params(
+                "UPDATE questionnaire_items SET "
+                "  parent_id = $1, label = $2, description = $3, type = $4, depth = $5, sort_order = $6 "
+                "WHERE id = $7",
+                parent_id, label, desc, type, depth, sort_order, item_id);
+
+            // Re-create options: delete first, then insert new ones
+            txn.exec_params(
+                "DELETE FROM questionnaire_item_options WHERE questionnaire_item_id = $1",
+                item_id);
+        }
+        else
+        {
+            // Insert new item
+            const auto r = txn.exec_params(
+                "INSERT INTO questionnaire_items "
+                "  (questionnaire_config_id, parent_id, item_key, label, description, type, depth, sort_order) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+                cfg, parent_id, key, label, desc, type, depth, sort_order);
+            item_id = r[0][0].as<long>();
+        }
+
+        processed_ids.push_back(item_id);
+
+        if (node.contains("options") && node.at("options").is_array())
+        {
+            int os = 0;
+            for (const auto& o : node.at("options"))
+                txn.exec_params(
+                    "INSERT INTO questionnaire_item_options "
+                    "  (questionnaire_item_id, value, label, sort_order) VALUES ($1, $2, $3, $4)",
+                    item_id, o.value("value", ""), o.value("label", ""), os++);
+        }
+
+        if (node.contains("items") && node.at("items").is_array())
+        {
+            int cs = 0;
+            for (const auto& child : node.at("items"))
+                _upsert_item(txn, cfg, item_id, child, depth + 1, cs++, existing_keys, processed_ids);
+        }
+    }
+
 public:
 
     explicit Store(Db& db) : _db(db) {}
@@ -290,6 +367,30 @@ public:
             username, username, password_hash, role);
         txn.commit();
         return User{ r[0]["id"].as<std::string>(), username, password_hash, role };
+    }
+
+    _MV_NODISCARD std::vector<User> find_all_users() const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec(
+            "SELECT id, email, password_hash, role FROM app_users ORDER BY id");
+        std::vector<User> out;
+        out.reserve(r.size());
+        for (const auto& row : r)
+            out.push_back(User{ row["id"].as<std::string>(), row["email"].as<std::string>(),
+                                 row["password_hash"].as<std::string>(), row["role"].as<std::string>() });
+        txn.commit();
+        return out;
+    }
+
+    bool remove_user(const std::string& id)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params("DELETE FROM app_users WHERE id = $1", _to_long(id));
+        txn.commit();
+        return r.affected_rows() > 0;
     }
 
     // =========================================================================
@@ -446,10 +547,10 @@ public:
             cat.title = c["label"].as<std::string>();
 
             const auto items = txn.exec_params(
-                "SELECT id, label, type, description FROM questionnaire_items "
+                "SELECT item_key, label, type, description FROM questionnaire_items "
                 "WHERE parent_id = $1 ORDER BY sort_order, id", c["id"].as<long>());
             for (const auto& i : items)
-                cat.items.push_back(QuestionItem{ i["id"].as<std::string>(),
+                cat.items.push_back(QuestionItem{ _txt(i["item_key"]),
                                                   _txt(i["label"]), _txt(i["type"]),
                                                   _txt(i["description"]) });
             out.push_back(std::move(cat));
@@ -473,10 +574,10 @@ public:
         cat.id    = c[0]["id"].as<std::string>();
         cat.title = c[0]["label"].as<std::string>();
         const auto items = txn.exec_params(
-            "SELECT id, label, type, description FROM questionnaire_items "
+            "SELECT item_key, label, type, description FROM questionnaire_items "
             "WHERE parent_id = $1 ORDER BY sort_order, id", actual_cat_id);
         for (const auto& i : items)
-            cat.items.push_back(QuestionItem{ i["id"].as<std::string>(),
+            cat.items.push_back(QuestionItem{ _txt(i["item_key"]),
                                               _txt(i["label"]), _txt(i["type"]),
                                               _txt(i["description"]) });
         txn.commit();
@@ -515,7 +616,7 @@ public:
                 "VALUES ($1, $2, $3, $4, $5, $6, 2, $7) RETURNING id",
                 cfg, _to_long(cat.id), key, item.label, item.description,
                 _norm_type(item.type), cs++);
-            cat.items.push_back(QuestionItem{ ir[0][0].as<std::string>(),
+            cat.items.push_back(QuestionItem{ key,
                                               item.label, _norm_type(item.type), item.description });
         }
         txn.commit();
@@ -539,10 +640,10 @@ public:
         cat.id    = r[0]["id"].as<std::string>();
         cat.title = r[0]["label"].as<std::string>();
         const auto items = txn.exec_params(
-            "SELECT id, label, type, description FROM questionnaire_items "
+            "SELECT item_key, label, type, description FROM questionnaire_items "
             "WHERE parent_id = $1 ORDER BY sort_order, id", actual_cat_id);
         for (const auto& i : items)
-            cat.items.push_back(QuestionItem{ i["id"].as<std::string>(),
+            cat.items.push_back(QuestionItem{ _txt(i["item_key"]),
                                               _txt(i["label"]), _txt(i["type"]),
                                               _txt(i["description"]) });
         txn.commit();
@@ -763,21 +864,37 @@ public:
             "WHERE id = $1",
             cfg, q.value("version", ""), q.value("title", ""), q.value("description", ""));
 
-        // Replace all items for this config (cascades to options).
-        txn.exec_params("DELETE FROM questionnaire_items WHERE questionnaire_config_id = $1", cfg);
+        // Fetch existing items for this configuration
+        const auto rows = txn.exec_params(
+            "SELECT id, item_key FROM questionnaire_items WHERE questionnaire_config_id = $1", cfg);
+        std::unordered_map<std::string, long> existing_keys;
+        for (const auto& row : rows)
+        {
+            existing_keys[row["item_key"].as<std::string>()] = row["id"].as<long>();
+        }
 
+        std::vector<long> processed_ids;
         if (q.contains("sections") && q.at("sections").is_array())
         {
             int s = 0;
             for (const auto& section : q.at("sections"))
-                _insert_item(txn, cfg, std::nullopt, section, 1, s++);
+                _upsert_item(txn, cfg, std::nullopt, section, 1, s++, existing_keys, processed_ids);
+        }
+
+        // Clean up any items that were not updated/processed
+        for (const auto& pair : existing_keys)
+        {
+            if (std::find(processed_ids.begin(), processed_ids.end(), pair.second) == processed_ids.end())
+            {
+                txn.exec_params("DELETE FROM questionnaire_items WHERE id = $1", pair.second);
+            }
         }
         txn.commit();
     }
 
     void import_questionnaire_version(const nlohmann::json& q)
     {
-        const std::string version = q.value("version", "");
+        const std::string version = _json_str(q, "version", "");
         if (version.empty()) return;
 
         auto conn = _db.acquire();
@@ -804,14 +921,30 @@ public:
             cfg_id = ins[0][0].as<long>();
         }
 
-        // Replace all items for this config (cascades to options)
-        txn.exec_params("DELETE FROM questionnaire_items WHERE questionnaire_config_id = $1", cfg_id);
+        // Fetch existing items for this configuration
+        const auto rows = txn.exec_params(
+            "SELECT id, item_key FROM questionnaire_items WHERE questionnaire_config_id = $1", cfg_id);
+        std::unordered_map<std::string, long> existing_keys;
+        for (const auto& row : rows)
+        {
+            existing_keys[row["item_key"].as<std::string>()] = row["id"].as<long>();
+        }
 
+        std::vector<long> processed_ids;
         if (q.contains("sections") && q.at("sections").is_array())
         {
             int s = 0;
             for (const auto& section : q.at("sections"))
-                _insert_item(txn, cfg_id, std::nullopt, section, 1, s++);
+                _upsert_item(txn, cfg_id, std::nullopt, section, 1, s++, existing_keys, processed_ids);
+        }
+
+        // Clean up any items that were not updated/processed
+        for (const auto& pair : existing_keys)
+        {
+            if (std::find(processed_ids.begin(), processed_ids.end(), pair.second) == processed_ids.end())
+            {
+                txn.exec_params("DELETE FROM questionnaire_items WHERE id = $1", pair.second);
+            }
         }
         txn.commit();
     }
@@ -864,6 +997,112 @@ public:
         }
         txn.commit();
         return out;
+    }
+
+    _MV_NODISCARD std::vector<nlohmann::json> get_all_rules_versions() const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+
+        const auto rows = txn.exec(
+            "SELECT version, title, description, levels FROM rules_configs "
+            "ORDER BY version ASC");
+
+        std::vector<nlohmann::json> out;
+        for (const auto& row : rows)
+        {
+            out.push_back({
+                {"version",     _txt(row["version"])},
+                {"title",       _txt(row["title"])},
+                {"description", _txt(row["description"])},
+                {"levels",      nlohmann::json::parse(_txt(row["levels"]))}
+            });
+        }
+        txn.commit();
+        return out;
+    }
+
+    _MV_NODISCARD std::optional<nlohmann::json> get_rules_by_version(const std::string& version) const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+
+        const auto rows = txn.exec_params(
+            "SELECT version, title, description, levels FROM rules_configs "
+            "WHERE version = $1 LIMIT 1", version);
+
+        if (rows.empty())
+        {
+            txn.commit();
+            return std::nullopt;
+        }
+
+        nlohmann::json out = {
+            {"version",     _txt(rows[0]["version"])},
+            {"title",       _txt(rows[0]["title"])},
+            {"description", _txt(rows[0]["description"])},
+            {"levels",      nlohmann::json::parse(_txt(rows[0]["levels"]))}
+        };
+        txn.commit();
+        return out;
+    }
+
+    void save_rules_version(const nlohmann::json& r)
+    {
+        const std::string version = _json_str(r, "version", "");
+        if (version.empty()) return;
+
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+
+        txn.exec_params(
+            "INSERT INTO rules_configs (version, title, description, levels) "
+            "VALUES ($1, $2, $3, $4) "
+            "ON CONFLICT (version) DO UPDATE SET "
+            "  title = EXCLUDED.title, "
+            "  description = EXCLUDED.description, "
+            "  levels = EXCLUDED.levels, "
+            "  updated_at = CURRENT_TIMESTAMP",
+            version,
+            r.value("title", ""),
+            r.value("description", ""),
+            r.value("levels", nlohmann::json::array()).dump()
+        );
+        txn.commit();
+    }
+
+    bool delete_questionnaire_version(const std::string& version)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+
+        // Find config id
+        const auto r = txn.exec_params(
+            "SELECT id FROM questionnaire_configs WHERE version = $1 LIMIT 1", version);
+        if (r.empty()) { txn.commit(); return false; }
+
+        const long cfg_id = r[0][0].as<long>();
+
+        try
+        {
+            txn.exec_params("DELETE FROM questionnaire_configs WHERE id = $1", cfg_id);
+            txn.commit();
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            throw std::runtime_error("Tega vprašalnika ni mogoče izbrisati, ker ga uporabljajo obstoječi cevovodi.");
+        }
+    }
+
+    bool delete_rules_version(const std::string& version)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params(
+            "DELETE FROM rules_configs WHERE version = $1", version);
+        txn.commit();
+        return r.affected_rows() > 0;
     }
 
 }; // class Store

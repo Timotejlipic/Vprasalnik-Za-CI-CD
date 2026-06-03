@@ -6,7 +6,7 @@ import clientQuestionnaireConfig2 from '../questionnaire2.json';
 import clientMaturityRules from '../maturity_rules.json';
 import clientMaturityRules2 from '../maturity_rules2.json';
 
-const API_BASE = 'http://localhost:3002';
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:3002`;
 
 // Local storage keys for offline mock database
 const KEYS = {
@@ -218,10 +218,83 @@ export const api = {
             return p;
           });
           
-          // Merge local mock pipelines so we never lose evaluations in multi-tab/offline setups
+          // Automatically upload offline-saved pipelines to the database
+          let localPipesChanged = false;
+          const normalizeRepo = (u) => (u || '').trim().toLowerCase()
+            .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
+            .replace(/\.git$/, '')
+            .replace(/\/$/, '');
+
+          for (const lp of localPipes) {
+            const isOffline = String(lp.id).startsWith('p_');
+            const existsOnServer = serverPipes.some(sp => 
+              String(sp.id) === String(lp.id) || 
+              (normalizeRepo(sp.repoLink) === normalizeRepo(lp.repoLink) && 
+               sp.assessor?.toLowerCase() === lp.assessor?.toLowerCase())
+            );
+
+            if (isOffline && !existsOnServer) {
+              try {
+                // Encode assessor and score into repoId (stored as "assessorName|score" in project_name)
+                const encodedRepoId = `${lp.assessor || 'Auto Ocenjevalec'}|${lp.score || 0}`;
+                const postRes = await fetch(`${API_BASE}/api/pipelines`, {
+                  method: 'POST',
+                  headers: getHeaders(),
+                  body: JSON.stringify({
+                    name: lp.name || 'Ocenjevanje',
+                    repoId: encodedRepoId,
+                    repoLink: lp.repoLink,
+                    assessor: lp.assessor || 'Auto Ocenjevalec',
+                    score: lp.score || 0,
+                    level: lp.level || 1,
+                    answers: lp.answers || {},
+                    version: lp.version || '1.0',
+                    rulesVersion: lp.rulesVersion || '1.0'
+                  })
+                });
+                if (postRes.ok) {
+                  const saved = await postRes.json();
+                  
+                  // Update the local list
+                  const idx = localPipes.findIndex(x => x.id === lp.id);
+                  if (idx > -1) {
+                    localPipes[idx] = {
+                      ...saved,
+                      versions: lp.versions || []
+                    };
+                    localPipesChanged = true;
+                  }
+
+                  // Update references in local assignments
+                  const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+                  let asgChanged = false;
+                  assignments.forEach(asg => {
+                    if (String(asg.pipelineId) === String(lp.id)) {
+                      asg.pipelineId = saved.id;
+                      asg.status = 'completed';
+                      asgChanged = true;
+                    }
+                  });
+                  if (asgChanged) {
+                    localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(assignments));
+                  }
+
+                  serverPipes.push(saved);
+                }
+              } catch (postErr) {
+                console.warn('Failed to auto-upload offline pipeline:', postErr);
+              }
+            }
+          }
+
+          if (localPipesChanged) {
+            localStorage.setItem(KEYS.PIPELINES, JSON.stringify(localPipes));
+          }
+
+          // Merge local mock pipelines so we never lose evaluations in multi-tab setups
           const merged = [...serverPipes];
           localPipes.forEach(lp => {
-            if (!merged.some(sp => String(sp.id) === String(lp.id) || (sp.repoLink === lp.repoLink && sp.assessor === lp.assessor))) {
+            if (!merged.some(sp => String(sp.id) === String(lp.id) || (normalizeRepo(sp.repoLink) === normalizeRepo(lp.repoLink) && sp.assessor?.toLowerCase() === lp.assessor?.toLowerCase()))) {
               merged.push(lp);
             }
           });
@@ -543,8 +616,10 @@ export const api = {
         });
         if (res.ok) {
           const data = await res.json();
-          localStorage.setItem(KEYS.QUESTIONNAIRE_VERSIONS, JSON.stringify(data));
-          return data;
+          if (Array.isArray(data) && data.length > 0) {
+            localStorage.setItem(KEYS.QUESTIONNAIRE_VERSIONS, JSON.stringify(data));
+            return data;
+          }
         }
       } catch (err) {
         console.warn('Napaka pri nalaganju verzij vprašalnika:', err);
@@ -552,7 +627,14 @@ export const api = {
     }
     // Offline fallback
     const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Napaka pri branju predpomnjenih različic vprašalnika:', e);
+      }
+    }
     // Default seed: two built-in versions
     const defaults = [
       {
@@ -594,24 +676,46 @@ export const api = {
     return null;
   },
 
+  async deleteQuestionnaireVersion(version) {
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/questionnaire/versions/${encodeURIComponent(version)}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Strežnik je vrnil napako ${res.status}`);
+      }
+      await this.getQuestionnaireVersions();
+      return true;
+    }
+    // Offline fallback: delete from cached versions
+    const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
+    if (cached) {
+      const versions = JSON.parse(cached);
+      const filtered = versions.filter(v => v.version !== version);
+      localStorage.setItem(KEYS.QUESTIONNAIRE_VERSIONS, JSON.stringify(filtered));
+    }
+    return true;
+  },
+
   async saveQuestionnaire(questionnaire) {
     const online = await this.checkHealth();
     if (online) {
-      try {
-        const res = await fetch(`${API_BASE}/api/questionnaire`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify(questionnaire)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // Also refresh versions cache
-          await this.getQuestionnaireVersions();
-          return data;
-        }
-      } catch (err) {
-        console.warn('Napaka pri shranjevanju vprašalnika:', err);
+      const res = await fetch(`${API_BASE}/api/questionnaire`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(questionnaire)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Strežnik je vrnil napako ${res.status}`);
       }
+      const data = await res.json();
+      // Also refresh versions cache
+      await this.getQuestionnaireVersions();
+      return data;
     }
     // Offline fallback: upsert into cached versions
     const cached = localStorage.getItem(KEYS.QUESTIONNAIRE_VERSIONS);
@@ -730,8 +834,10 @@ export const api = {
         });
         if (res.ok) {
           const data = await res.json();
-          localStorage.setItem(KEYS.RULES_VERSIONS, JSON.stringify(data));
-          return data;
+          if (Array.isArray(data) && data.length > 0) {
+            localStorage.setItem(KEYS.RULES_VERSIONS, JSON.stringify(data));
+            return data;
+          }
         }
       } catch (err) {
         console.warn('Napaka pri nalaganju verzij pravil:', err);
@@ -739,7 +845,14 @@ export const api = {
     }
     // Offline fallback
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Napaka pri branju predpomnjenih različic pravil:', e);
+      }
+    }
 
     // Default seed: two built-in versions matching the questionnaire versions
     const defaults = [
@@ -785,20 +898,18 @@ export const api = {
   async saveRulesVersion(rulesVersion) {
     const online = await this.checkHealth();
     if (online) {
-      try {
-        const res = await fetch(`${API_BASE}/api/rules/versions`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify(rulesVersion)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          await this.getRulesVersions();
-          return data;
-        }
-      } catch (err) {
-        console.warn('Napaka pri shranjevanju verzije pravil:', err);
+      const res = await fetch(`${API_BASE}/api/rules/versions`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(rulesVersion)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Strežnik je vrnil napako ${res.status}`);
       }
+      const data = await res.json();
+      await this.getRulesVersions();
+      return data;
     }
     // Offline fallback: upsert into cached versions
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
@@ -816,18 +927,16 @@ export const api = {
   async deleteRulesVersion(version) {
     const online = await this.checkHealth();
     if (online) {
-      try {
-        const res = await fetch(`${API_BASE}/api/rules/versions/${encodeURIComponent(version)}`, {
-          method: 'DELETE',
-          headers: getHeaders()
-        });
-        if (res.ok) {
-          await this.getRulesVersions();
-          return true;
-        }
-      } catch (err) {
-        console.warn('Napaka pri brisanju verzije pravil:', err);
+      const res = await fetch(`${API_BASE}/api/rules/versions/${encodeURIComponent(version)}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Strežnik je vrnil napako ${res.status}`);
       }
+      await this.getRulesVersions();
+      return true;
     }
     // Offline fallback
     const cached = localStorage.getItem(KEYS.RULES_VERSIONS);
@@ -851,10 +960,40 @@ export const api = {
 
   // Admin and Assignment Methods
   async adminGetUsers() {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/users`, {
+          method: 'GET',
+          headers: getHeaders()
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Failed to fetch online users, using offline fallback:', err);
+      }
+    }
     return JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
   },
 
   async adminCreateUser({ email, password, role }) {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/users`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ email, password, role })
+        });
+        if (res.ok) return await res.json();
+        const err = await res.json();
+        throw new Error(err.error || 'Ustvarjanje uporabnika ni uspelo.');
+      } catch (err) {
+        console.warn('Failed to create online user, using offline fallback:', err);
+        throw err;
+      }
+    }
+    
+    // Offline fallback
     const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
     if (users.some(u => u.email?.toLowerCase() === email?.toLowerCase())) {
       throw new Error('Uporabnik s tem e-poštnim naslovom že obstaja.');
@@ -873,17 +1012,94 @@ export const api = {
     return newUser;
   },
 
+  async setUserPassword(email, newPassword) {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Geslo mora imeti vsaj 6 znakov.');
+    }
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/set-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: newPassword })
+        });
+        if (res.ok) return await res.json();
+        const err = await res.json();
+        throw new Error(err.error || 'Nastavitev gesla ni uspela.');
+      } catch (err) {
+        console.warn('Failed to set password online, using offline fallback:', err);
+      }
+    }
+    // Offline fallback
+    const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
+    const user = users.find(u => u.email?.toLowerCase() === email?.toLowerCase());
+    if (!user) {
+      throw new Error('Uporabnik s tem e-poštnim naslovom ne obstaja.');
+    }
+    user.password = newPassword;
+    localStorage.setItem(KEYS.USERS_DB, JSON.stringify(users));
+    return user;
+  },
+
+  async adminDeleteUser(userId) {
+    // Clean up group memberships in client storage
+    const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
+    const updatedGroups = groups.map(g => ({
+      ...g,
+      userIds: (g.userIds || []).filter(id => String(id) !== String(userId))
+    }));
+    localStorage.setItem(KEYS.GROUPS, JSON.stringify(updatedGroups));
+
+    // Clean up assignments in client storage
+    const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+    const updatedAssignments = assignments.filter(a => String(a.userId) !== String(userId));
+    localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(updatedAssignments));
+
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (res.ok) return await res.json();
+        const err = await res.json();
+        throw new Error(err.error || 'Brisanje uporabnika ni uspelo.');
+      } catch (err) {
+        console.warn('Failed to delete online user, using offline fallback:', err);
+        throw err;
+      }
+    }
+    
+    // Offline fallback
+    const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
+    const idx = users.findIndex(u => String(u.id) === String(userId));
+    if (idx > -1) {
+      users.splice(idx, 1);
+      localStorage.setItem(KEYS.USERS_DB, JSON.stringify(users));
+      return { status: 'ok' };
+    }
+    throw new Error('Uporabnik ni bil najden.');
+  },
+
   async adminGetGroups() {
     return JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
   },
 
-  async adminCreateGroup({ name, userIds, githubRepos }) {
+  async adminCreateGroup({ name, userIds, githubRepos, formVersion = '1.0', rulesVersion = '1.0' }) {
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
+    const repoConfigs = {};
+    githubRepos.forEach(repoLink => {
+      repoConfigs[repoLink] = { formVersion, rulesVersion };
+    });
+
     const newGroup = {
       id: 'grp_' + Date.now(),
       name,
       userIds,
       githubRepos,
+      repoConfigs,
       createdAt: new Date().toISOString().split('T')[0]
     };
     groups.push(newGroup);
@@ -891,10 +1107,10 @@ export const api = {
 
     // Automatically create assignments!
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
-    const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
+    const users = await this.adminGetUsers();
     
     userIds.forEach(userId => {
-      const u = users.find(x => x.id === userId);
+      const u = users.find(x => String(x.id) === String(userId));
       if (!u) return;
       githubRepos.forEach(repoLink => {
         const repoName = extractRepoName(repoLink);
@@ -912,6 +1128,8 @@ export const api = {
           level: null,
           pipelineId: null,
           answers: null,
+          formVersion,
+          rulesVersion,
           createdAt: new Date().toISOString().split('T')[0]
         });
       });
@@ -933,15 +1151,19 @@ export const api = {
 
     // Automatically create assignments for this new member for all group repos!
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
-    const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
-    const u = users.find(x => x.id === userId);
+    const users = await this.adminGetUsers();
+    const u = users.find(x => String(x.id) === String(userId) || x.email?.toLowerCase() === userId.toLowerCase());
     
     if (u) {
       group.githubRepos.forEach(repoLink => {
-        // Check if assignment already exists
-        const exists = assignments.some(a => a.userId === userId && a.repoLink === repoLink);
+        // Check if assignment already exists (robust comparison)
+        const exists = assignments.some(a => 
+          (String(a.userId) === String(u.id) || a.userEmail?.toLowerCase() === u.email?.toLowerCase()) && 
+          a.repoLink.toLowerCase() === repoLink.toLowerCase()
+        );
         if (!exists) {
           const repoName = extractRepoName(repoLink);
+          const config = (group.repoConfigs && group.repoConfigs[repoLink]) || { formVersion: '1.0', rulesVersion: '1.0' };
           assignments.push({
             id: 'asgn_' + Math.random().toString(36).slice(2) + Date.now().toString(36),
             userId: u.id,
@@ -956,6 +1178,8 @@ export const api = {
             level: null,
             pipelineId: null,
             answers: null,
+            formVersion: config.formVersion || '1.0',
+            rulesVersion: config.rulesVersion || '1.0',
             createdAt: new Date().toISOString().split('T')[0]
           });
         }
@@ -965,13 +1189,132 @@ export const api = {
     return group;
   },
 
+  async adminDeleteGroup(groupId) {
+    const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
+    const filteredGroups = groups.filter(g => g.id !== groupId);
+    localStorage.setItem(KEYS.GROUPS, JSON.stringify(filteredGroups));
+
+    // Delete assignments for this group
+    const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+    const filteredAssignments = assignments.filter(a => a.groupId !== groupId);
+    localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(filteredAssignments));
+    return true;
+  },
+
+  async adminRemoveGroupMember(groupId, userId) {
+    const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
+    const idx = groups.findIndex(g => g.id === groupId);
+    if (idx === -1) throw new Error('Skupina ni bila najdena.');
+
+    const group = groups[idx];
+    group.userIds = group.userIds.filter(id => 
+      String(id) !== String(userId) && 
+      id.toLowerCase() !== userId.toLowerCase()
+    );
+    localStorage.setItem(KEYS.GROUPS, JSON.stringify(groups));
+
+    // Remove pending assignments for this user in this group (robust match by ID and email)
+    const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+    const users = JSON.parse(localStorage.getItem(KEYS.USERS_DB)) || [];
+    const u = users.find(x => String(x.id) === String(userId) || x.email?.toLowerCase() === userId.toLowerCase());
+    
+    const filteredAssignments = assignments.filter(a => {
+      const isThisGroup = a.groupId === groupId;
+      const isThisUser = String(a.userId) === String(userId) || 
+                         a.userEmail?.toLowerCase() === userId.toLowerCase() ||
+                         (u && (String(a.userId) === String(u.id) || a.userEmail?.toLowerCase() === u.email?.toLowerCase()));
+      const isPending = a.status === 'pending';
+      return !(isThisGroup && isThisUser && isPending);
+    });
+    localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(filteredAssignments));
+    return group;
+  },
+
+  async adminAddGroupRepo(groupId, repoLink, formVersion = '1.0', rulesVersion = '1.0') {
+    if (!repoLink || !repoLink.trim()) throw new Error('Vnesite povezavo do GitHub repozitorija.');
+    
+    const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
+    const idx = groups.findIndex(g => g.id === groupId);
+    if (idx === -1) throw new Error('Skupina ni bila najdena.');
+
+    const group = groups[idx];
+    if (!group.githubRepos) group.githubRepos = [];
+    
+    if (group.githubRepos.some(r => r.toLowerCase() === repoLink.trim().toLowerCase())) {
+      throw new Error('Ta repozitorij je že dodeljen tej skupini.');
+    }
+
+    group.githubRepos.push(repoLink.trim());
+    if (!group.repoConfigs) group.repoConfigs = {};
+    group.repoConfigs[repoLink.trim()] = { formVersion, rulesVersion };
+    
+    localStorage.setItem(KEYS.GROUPS, JSON.stringify(groups));
+
+    // Create assignments for all members for this new repository
+    const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+    const users = await this.adminGetUsers();
+    
+    group.userIds.forEach(userId => {
+      const u = users.find(x => String(x.id) === String(userId) || x.email?.toLowerCase() === userId.toLowerCase());
+      if (!u) return;
+      
+      const exists = assignments.some(a => 
+        (String(a.userId) === String(u.id) || a.userEmail?.toLowerCase() === u.email?.toLowerCase()) && 
+        a.repoLink.toLowerCase() === repoLink.trim().toLowerCase()
+      );
+      if (!exists) {
+        const repoName = extractRepoName(repoLink);
+        assignments.push({
+          id: 'asgn_' + Math.random().toString(36).slice(2) + Date.now().toString(36),
+          userId: u.id,
+          userEmail: u.email,
+          userName: u.name,
+          repoLink: repoLink.trim(),
+          repoName,
+          groupId: group.id,
+          groupName: group.name,
+          status: 'pending',
+          score: null,
+          level: null,
+          pipelineId: null,
+          answers: null,
+          formVersion,
+          rulesVersion,
+          createdAt: new Date().toISOString().split('T')[0]
+        });
+      }
+    });
+    localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(assignments));
+    return group;
+  },
+
   async adminGetAssignments() {
     return JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
   },
 
   async getUserAssignments(userId) {
+    if (!userId) return [];
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
-    return assignments.filter(a => a.userId === userId);
+    
+    let u = null;
+    try {
+      const users = await this.adminGetUsers();
+      u = users.find(x => 
+        String(x.id) === String(userId) || 
+        x.email?.toLowerCase() === String(userId).toLowerCase()
+      );
+    } catch (err) {
+      console.warn('Failed to fetch users in getUserAssignments:', err);
+    }
+
+    return assignments.filter(a => 
+      String(a.userId) === String(userId) || 
+      a.userEmail?.toLowerCase() === String(userId).toLowerCase() ||
+      (u && (
+        String(a.userId) === String(u.id) || 
+        a.userEmail?.toLowerCase() === u.email?.toLowerCase()
+      ))
+    );
   },
 
   async completeAssignment(assignmentId, score, level, pipelineId, answers) {

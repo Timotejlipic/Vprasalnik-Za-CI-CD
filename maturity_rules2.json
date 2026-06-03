@@ -28,7 +28,7 @@
         { "item_id": "daily_present", "value": true },
         { "item_id": "daily_timebox", "value": true },
         { "item_id": "daily_blocker_tracking", "value": true },
-        { "item_id": "sprint_retro", "value": true },
+        { "item_id": "retro_present", "value": true },
         { "item_id": "retro_action_items", "value": true },
         { "item_id": "retro_action_items_count", "operator": ">=", "value": 2 },
         { "item_id": "retro_open_atmosphere", "value": true }
@@ -51,7 +51,7 @@
         { "item_id": "planning_has_goal", "value": true },
         { "item_id": "daily_present", "value": true },
         { "item_id": "daily_timebox", "value": true },
-        { "item_id": "sprint_retro", "value": true },
+        { "item_id": "retro_present", "value": true },
         { "item_id": "retro_action_items", "value": true },
         { "item_id": "retro_action_items_count", "operator": ">=", "value": 1 }
       ],
@@ -70,7 +70,7 @@
       "criteria": [
         { "item_id": "planning_present", "value": true },
         { "item_id": "daily_present", "value": true },
-        { "item_id": "sprint_retro", "value": true }
+        { "item_id": "retro_present", "value": true }
       ],
       "improvement_suggestions": {
         "planning_has_goal": "Uvedite definiranje cilja sprinta, da ekipa dobi jasen fokus namesto zgolj seznama nalog.",
@@ -88,7 +88,7 @@
         { "item_id": "daily_present", "value": true }
       ],
       "improvement_suggestions": {
-        "sprint_retro": "Uvedite retrospektivo na koncu vsakega cikla, saj je to ključno orodje agilnega dela za odpravljanje težav."
+        "retro_present": "Uvedite retrospektivo na koncu vsakega cikla, saj je to ključno orodje agilnega dela za odpravljanje težav."
       }
     },
     {

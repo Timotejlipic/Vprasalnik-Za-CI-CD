@@ -94,7 +94,7 @@ export default function GitHubYamlViewer({ repoLink = '', onFilesLoaded }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span>⚙</span> GitHub YAML Datoteke
+          <span></span> GitHub YAML Datoteke
           {loading && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>— nalagam…</span>}
           {!loading && yamlFiles.length > 0 && (
             <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
@@ -116,7 +116,7 @@ export default function GitHubYamlViewer({ repoLink = '', onFilesLoaded }) {
       {/* Error */}
       {error && (
         <div style={{ color: 'var(--warning-color)', fontSize: '0.8rem', background: 'rgba(210,153,34,0.1)', padding: '7px 10px', borderRadius: '5px', marginBottom: '8px' }}>
-          ⚠ {error}
+          ! {error}
         </div>
       )}
 
@@ -140,7 +140,7 @@ export default function GitHubYamlViewer({ repoLink = '', onFilesLoaded }) {
                 className={`yaml-file-item ${selectedFile?.path === f.path ? 'active' : ''}`}
                 onClick={() => fetchFileContent(f)}
               >
-                📄 {f.path}
+                 {f.path}
               </div>
             ))}
           </div>

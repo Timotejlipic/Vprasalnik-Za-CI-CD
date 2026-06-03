@@ -226,8 +226,8 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card" style={{ maxWidth: '680px', maxHeight: '92vh', overflowY: 'auto' }}>
         <div className="modal-header">
-          <h3>{levelObj?.id !== undefined || levelObj?.level !== undefined ? '✎ Uredi stopnjo zrelosti' : '＋ Nova stopnja zrelosti'}</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <h3>{levelObj?.id !== undefined || levelObj?.level !== undefined ? ' Uredi stopnjo zrelosti' : '＋ Nova stopnja zrelosti'}</h3>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px', marginBottom: '12px' }}>
@@ -371,7 +371,7 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
                               ))}
                             </optgroup>
                           ))}
-                          <option value="__custom__">✎ Ročni vnos ID-ja...</option>
+                          <option value="__custom__"> Ročni vnos ID-ja...</option>
                         </select>
                       )}
                     </div>
@@ -449,7 +449,7 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
                         }}
                         title="Odstrani ta pogoj"
                       >
-                        ✕
+                        X
                       </button>
                     </div>
 
@@ -544,7 +544,7 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
                                 ))}
                               </optgroup>
                             ))}
-                            <option value="__custom__">✎ Ročni vnos ID-ja...</option>
+                            <option value="__custom__"> Ročni vnos ID-ja...</option>
                           </select>
                         )}
                       </div>
@@ -576,7 +576,7 @@ function LevelModal({ levelObj, onSave, onClose, categories }) {
                           }}
                           title="Odstrani priporočilo"
                         >
-                          ✕ Odstrani
+                          X Odstrani
                         </button>
                       </div>
                     </div>
@@ -952,6 +952,31 @@ export default function Rules({
     }
   };
 
+  const handleDeleteRulesVersion = async () => {
+    if (!localRulesVersion) return;
+    if (!window.confirm(`Ali ste prepričani, da želite izbrisati celotna pravila zrelosti verzije ${localRulesVersion}?`)) return;
+    try {
+      await api.deleteRulesVersion(localRulesVersion);
+      alert(`Verzija pravil ${localRulesVersion} uspešno izbrisana.`);
+      if (setRulesVersions) {
+        const remaining = await api.getRulesVersions();
+        setRulesVersions(remaining || []);
+        if (remaining && remaining.length > 0) {
+          const nextV = remaining[remaining.length - 1].version;
+          setLocalRulesVersion(nextV);
+          if (setSelectedRulesVersion) setSelectedRulesVersion(nextV);
+          if (loadRulesForVersion) loadRulesForVersion(nextV);
+        } else {
+          setLocalRulesVersion('');
+          if (setSelectedRulesVersion) setSelectedRulesVersion(null);
+          setRules([]);
+        }
+      }
+    } catch (err) {
+      alert(`Napaka pri brisanju: ${err.message}`);
+    }
+  };
+
   const sortedRules = [...rules].sort((a, b) => {
     const aVal = a.level !== undefined ? a.level : a.id;
     const bVal = b.level !== undefined ? b.level : b.id;
@@ -1017,6 +1042,23 @@ export default function Rules({
               </option>
             ))}
           </select>
+          {isAdmin && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleDeleteRulesVersion}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.8rem',
+                backgroundColor: 'var(--danger-color)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              Izbriši celotna pravila
+            </button>
+          )}
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             Uvozite nova pravila zrelosti za dodajanje verzije
           </span>
@@ -1170,8 +1212,8 @@ export default function Rules({
                     </td>
                     {isAdmin && (
                       <td style={{ textAlign: 'right' }}>
-                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 8px' }} onClick={() => setEditingLevel(r)}>✎ Uredi</button>
-                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 6px', color: 'var(--danger-color)' }} onClick={() => handleDeleteLevel(levelId)}>✕</button>
+                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 8px' }} onClick={() => setEditingLevel(r)}> Uredi</button>
+                        <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 6px', color: 'var(--danger-color)' }} onClick={() => handleDeleteLevel(levelId)}>X</button>
                       </td>
                     )}
                   </tr>
@@ -1266,10 +1308,10 @@ export default function Rules({
                   {isAdmin && (
                     <>
                       <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '4px 10px' }} onClick={() => setEditingLevel(r)}>
-                        ✎ Uredi
+                         Uredi
                       </button>
                       <button className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '4px 8px', color: 'var(--danger-color)' }} onClick={() => handleDeleteLevel(levelId)}>
-                        ✕ Izbriši
+                        X Izbriši
                       </button>
                     </>
                   )}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../api.js';
-import ResultsPanel from './ResultsPanel.jsx';
+import { openResultsInNewWindow } from '../utils.js';
 
-export default function UserAssessments({ user, isLoggedIn, switchView, startAssessmentForRepo }) {
+export default function UserAssessments({ user, isLoggedIn, switchView, startAssessmentForRepo, onPreviewAnswers }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -12,7 +12,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
 
-  const loggedInUser = useMemo(() => api.getCurrentUser(), []);
+  const loggedInUser = api.getCurrentUser();
 
   useEffect(() => {
     async function loadData() {
@@ -20,27 +20,92 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
       setLoading(true);
       try {
         const data = await api.getUserAssignments(loggedInUser.id);
-        setAssignments(data || []);
-        
         const catsData = await api.getCategories();
         setCategories(catsData || []);
         
         const rulesData = await api.getRules();
         setRules(rulesData || []);
+
+        // Dynamic synchronization with user's saved pipelines (online & offline)
+        let assignmentsData = data || [];
+        try {
+          const pipelinesData = await api.getPipelines();
+          const pipelinesList = pipelinesData || [];
+          
+          let changed = false;
+          const normalizeRepo = (u) => (u || '').trim().toLowerCase()
+            .replace(/^(https?:\/\/)?(www\.)?github\.com\//, '')
+            .replace(/\.git$/, '')
+            .replace(/\/$/, '');
+
+          const syncedAssignments = assignmentsData.map(asg => {
+            if (asg.status === 'completed') return asg;
+            
+            // Find if there is a matching pipeline saved for this repository
+            const matchingPipe = pipelinesList.find(p => 
+              normalizeRepo(p.repoLink) === normalizeRepo(asg.repoLink)
+            );
+            
+            if (matchingPipe) {
+              changed = true;
+              return {
+                ...asg,
+                status: 'completed',
+                score: matchingPipe.score || 0,
+                level: matchingPipe.level || 1,
+                pipelineId: matchingPipe.id,
+                answers: matchingPipe.answers || null,
+                completedAt: matchingPipe.date || new Date().toISOString().split('T')[0]
+              };
+            }
+            return asg;
+          });
+
+          if (changed) {
+            const allAssignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
+            syncedAssignments.forEach(synced => {
+              const idx = allAssignments.findIndex(a => a.id === synced.id);
+              if (idx > -1) {
+                allAssignments[idx] = synced;
+              }
+            });
+            localStorage.setItem('cicdq_offline_assignments', JSON.stringify(allAssignments));
+            assignmentsData = syncedAssignments;
+          }
+        } catch (pipelineErr) {
+          console.warn('Failed to sync assignments with pipelines:', pipelineErr);
+        }
+
+        setAssignments(assignmentsData);
       } catch (err) {
         console.error('Failed to load assignments:', err);
       }
       setLoading(false);
     }
     loadData();
-  }, [loggedInUser]);
+  }, [isLoggedIn, user]);
 
   const viewResults = async (asgn) => {
     if (!asgn.answers) return;
     try {
       const results = await api.evaluate(asgn.answers, categories, rules);
-      setEvaluationResults(results);
-      setSelectedAssignment(asgn);
+      if (onPreviewAnswers) {
+        onPreviewAnswers({
+          answers: asgn.answers,
+          version: asgn.formVersion || '1.0',
+          rulesVersion: asgn.rulesVersion || '1.0',
+          name: asgn.repoName || asgn.repoLink || ''
+        });
+      } else {
+        openResultsInNewWindow({
+          answers: asgn.answers,
+          results: results,
+          categories,
+          rules,
+          isReadOnly: true,
+          title: asgn.repoName || asgn.repoLink || ''
+        });
+      }
     } catch (err) {
       alert('Napaka pri nalaganju rezultatov: ' + err.message);
     }
@@ -84,9 +149,9 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
       {/* Metrics Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         {[
-          { label: 'Vsa dodeljena ocenjevanja', value: metrics.total, color: 'var(--accent-color)', icon: '📋' },
-          { label: 'Čaka na oceno', value: metrics.pending, color: metrics.pending > 0 ? 'var(--warning-color)' : 'var(--text-secondary)', icon: '⏳' },
-          { label: 'Dokončano', value: metrics.completed, color: 'var(--success-color)', icon: '✅' },
+          { label: 'Vsa dodeljena ocenjevanja', value: metrics.total, color: 'var(--accent-color)', icon: '' },
+          { label: 'Čaka na oceno', value: metrics.pending, color: metrics.pending > 0 ? 'var(--warning-color)' : 'var(--text-secondary)', icon: '' },
+          { label: 'Dokončano', value: metrics.completed, color: 'var(--success-color)', icon: '✓' },
         ].map((card, idx) => (
           <div key={idx} className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ fontSize: '2rem', background: 'rgba(255,255,255,0.03)', width: '50px', height: '50px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContents: 'center', textAlign: 'center', lineHeight: '50px', justifyContent: 'center' }}>
@@ -107,7 +172,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
 
       {assignments.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎉</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}></div>
           <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Nimate dodeljenih nalog</div>
           <div style={{ fontSize: '0.82rem', marginTop: '4px' }}>Trenutno nimate aktivnih dodelitev za ocenjevanje CI/CD cevovodov.</div>
         </div>
@@ -143,7 +208,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                     <a href={asgn.repoLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-color)', textDecoration: 'none' }}>
-                      🔗 {asgn.repoLink}
+                       {asgn.repoLink}
                     </a>
                   </div>
                 </div>
@@ -166,7 +231,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
                   <div>
                     {isCompleted ? (
                       <button className="btn btn-ghost" style={{ fontSize: '0.85rem' }} onClick={() => viewResults(asgn)}>
-                        🔍 Preglej oceno
+                         Preglej oceno
                       </button>
                     ) : (
                       <button className="btn btn-accent" style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => startAssessmentForRepo(asgn.repoLink, asgn.id)}>
@@ -181,17 +246,7 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
         </div>
       )}
 
-      {/* Results Detail Modal */}
-      {selectedAssignment && evaluationResults && (
-        <ResultsPanel
-          results={evaluationResults}
-          answers={selectedAssignment.answers || {}}
-          categories={categories}
-          rules={rules}
-          isReadOnly={true}
-          onClose={() => { setSelectedAssignment(null); setEvaluationResults(null); }}
-        />
-      )}
+
     </div>
   );
 }

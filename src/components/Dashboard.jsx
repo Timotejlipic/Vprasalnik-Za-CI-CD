@@ -1,125 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
-import { evaluateAssessment, getFlatCategoriesItems } from '../utils.js';
+import { evaluateAssessment, getFlatCategoriesItems, getPipelineCategories, detectPipelineChanges } from '../utils.js';
 
-// Helper to extract UI-compatible categories for a specific pipeline's version
-function getPipelineCategories(p, questionnairesList) {
-  const version = p.qVersion || p.version || "1.0";
-  const qObj = questionnairesList.find(q => q.version === version);
-  if (!qObj || !qObj.sections) return [];
-  
-  const result = [];
-  qObj.sections.forEach(section => {
-    // Normalise super-category label
-    const id = (section.id || '').toLowerCase();
-    let superCategory = 'Ostalo';
-    if (id.includes('build') || id.includes('unit_test') || id.includes('sc_build') || id.includes('sc_test')) {
-      superCategory = 'Neprekinjena integracija (CI)';
-    } else if (id.includes('deploy') || id.includes('sc_deploy')) {
-      superCategory = 'Neprekinjeno nameščanje (CD)';
-    }
-
-    if (section.categories && Array.isArray(section.categories)) {
-      section.categories.forEach(cat => {
-        result.push({
-          id: cat.id || section.id,
-          title: cat.title || cat.label || section.label || section.id,
-          superCategory,
-          description: cat.description || '',
-          items: cat.items || [],
-        });
-      });
-    } else {
-      result.push({
-        id: section.id,
-        title: section.label || section.id,
-        superCategory,
-        description: section.description || '',
-        items: section.items || [],
-      });
-    }
-  });
-  return result;
-}
-
-// Helper to detect if form or rules have changed compared to saved pipeline evaluation
-function detectPipelineChanges(p, questionnairesList, rulesVersionsList) {
-  const pCats = getPipelineCategories(p, questionnairesList);
-  
-  const rVer = p.rulesVersion || p.version || "1.0";
-  const rObj = rulesVersionsList.find(r => r.version === rVer);
-  const pRules = rObj ? rObj.levels : [];
-
-  if (pCats.length === 0 || pRules.length === 0) {
-    return { hasChanges: false, added: [], removed: [], scoreChanged: false };
-  }
-
-  // Flatten all active question items recursively
-  const flatItems = getFlatCategoriesItems(pCats);
-
-  const activeKeys = flatItems.map(item => item.id);
-  const answeredKeys = Object.keys(p.answers || {});
-
-  // If the pipeline has no answers saved at all, it is either new, empty,
-  // or the database is in an unseeded initial state. We treat it as having no changes.
-  if (answeredKeys.length === 0) {
-    return { hasChanges: false, added: [], removed: [], scoreChanged: false };
-  }
-
-  // 1. Detect new questions (exist in current version but missing from answers)
-  const added = flatItems.filter(item => !answeredKeys.includes(item.id));
-  
-  // 2. Detect removed questions (exist in answers but removed from current version)
-  const removedKeys = answeredKeys.filter(key => !activeKeys.includes(key));
-  const removed = removedKeys.map(key => ({ id: key }));
-
-  // 3. Silent re-evaluation using active questionnaire rules
-  const silentEval = evaluateAssessment(p.answers || {}, pCats, pRules);
-
-  // Dynamically populate score if database returned 0 due to database schema limitations (lack of score column)
-  if (p.score === 0 || p.score === undefined) {
-    p.score = silentEval.score;
-  }
-
-  // Populate dynamic score for historical versions too
-  if (p.versions && Array.isArray(p.versions)) {
-    p.versions.forEach(v => {
-      if (v.score === 0 || v.score === undefined) {
-        const vCats = getPipelineCategories(v, questionnairesList);
-        const vRulesObj = rulesVersionsList.find(r => r.version === (v.rulesVersion || rVer));
-        const vRules = vRulesObj ? vRulesObj.levels : [];
-        if (vCats.length > 0 && vRules.length > 0) {
-          const vEval = evaluateAssessment(v.answers || {}, vCats, vRules);
-          v.score = vEval.score;
-        }
-      }
-    });
-  }
-
-  // Dynamically correct score/level if there are no questionnaire structural changes
-  // to resolve past backend rules-version mismatches or lack of columns
-  if (added.length === 0 && removed.length === 0) {
-    p.score = silentEval.score;
-    p.level = silentEval.level;
-    p.levelName = silentEval.levelName;
-  }
-
-  const scoreChanged = silentEval.score !== p.score || silentEval.level !== p.level;
-
-  const hasChanges = added.length > 0 || removed.length > 0 || scoreChanged;
-
-  return {
-    hasChanges,
-    added,
-    removed,
-    scoreChanged,
-    newScore: silentEval.score,
-    newLevel: silentEval.level,
-    newLevelName: silentEval.levelName,
-    pCats,
-    pRules
-  };
-}
 
 function UpdateDiffModal({ pipeline, diff, onConfirm, onClose }) {
   return (
@@ -127,9 +9,9 @@ function UpdateDiffModal({ pipeline, diff, onConfirm, onClose }) {
       <div className="modal-card" style={{ maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header" style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>
           <h3 style={{ margin: 0, color: '#e3b341', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            ⚠️ Posodobitev vprašalnika in pravil: {pipeline.name}
+            !️ Posodobitev vprašalnika in pravil: {pipeline.name}
           </h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
         <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -160,7 +42,7 @@ function UpdateDiffModal({ pipeline, diff, onConfirm, onClose }) {
           {diff.removed.length > 0 && (
             <div style={{ background: 'rgba(248,81,73,0.06)', border: '1px solid rgba(248,81,73,0.2)', padding: '12px 14px', borderRadius: '8px' }}>
               <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--danger-color)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                ✕ Odstranjena odvečna vprašanja ({diff.removed.length})
+                X Odstranjena odvečna vprašanja ({diff.removed.length})
               </div>
               <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {diff.removed.map(r => (
@@ -176,7 +58,7 @@ function UpdateDiffModal({ pipeline, diff, onConfirm, onClose }) {
           {diff.scoreChanged && (
             <div style={{ background: 'rgba(88,166,255,0.06)', border: '1px solid rgba(88,166,255,0.2)', padding: '12px 14px', borderRadius: '8px' }}>
               <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--accent-color)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                📊 Napoved spremembe ocene in stopnje
+                 Napoved spremembe ocene in stopnje
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', textAlign: 'center' }}>
                 <div style={{ padding: '8px', background: 'rgba(0,0,0,0.15)', borderRadius: '6px' }}>
@@ -335,189 +217,93 @@ function NewAssessmentModal({ questionnaires, rulesVersions = [], userRole, onSt
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-card" style={{ maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal-card" style={{ maxWidth: '660px', maxHeight: '140vh', overflowY: 'auto' }}>
         <div className="modal-header">
           <h3>Novo ocenjevanje</h3>
-          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>✕</button>
+          <button className="btn btn-ghost" style={{ padding: '4px 8px' }} onClick={onClose}>X</button>
         </div>
 
-        <div style={{ marginBottom: '22px' }}>
-          <label className="form-label" style={{ marginBottom: '10px', display: 'block', fontWeight: 600 }}>
-            Izberite vprašalnik (obrazec)
+        <div style={{ marginBottom: '18px' }}>
+          <label className="form-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 600 }}>
+            Vprašalnik (obrazec) *
           </label>
 
           {questionnaires.length === 0 ? (
             <div style={{
               color: 'var(--text-secondary)',
-              fontSize: '0.88rem',
-              padding: '20px',
+              fontSize: '0.85rem',
+              padding: '12px',
               textAlign: 'center',
               background: 'rgba(255,255,255,0.02)',
               borderRadius: '8px',
               border: '1px dashed var(--panel-border)',
             }}>
-              Ni razpoložljivih vprašalnikov. Obrnite se na administratorja.
+              Ni razpoložljivih vprašalnikov.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {questionnaires.map((q, idx) => {
-                const isSelected = q.version === selectedQ;
-                return (
-                  <div
-                    key={q.version}
-                    onClick={() => setSelectedQ(q.version)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      border: `2px solid ${isSelected ? 'var(--accent-color)' : 'var(--panel-border)'}`,
-                      background: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      border: `2px solid ${isSelected ? 'var(--accent-color)' : 'var(--panel-border)'}`,
-                      background: isSelected ? 'var(--accent-color)' : 'transparent',
-                      flexShrink: 0,
-                      marginTop: '2px',
-                      transition: 'all 0.18s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      {isSelected && (
-                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#fff' }} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                        <span style={{
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        }}>
-                          {q.title || `Vprašalnik v${q.version}`}
-                        </span>
-                        <span style={{
-                          fontSize: '0.7rem',
-                          color: 'var(--text-secondary)',
-                          background: 'rgba(255,255,255,0.06)',
-                          padding: '1px 6px',
-                          borderRadius: '8px',
-                        }}>
-                          v{q.version}
-                        </span>
-                      </div>
-                      {q.description && (
-                        <div style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.4,
-                        }}>
-                          {q.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <select
+              className="form-control"
+              value={selectedQ || ''}
+              onChange={e => setSelectedQ(e.target.value)}
+              style={{
+                background: 'var(--panel-bg)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--panel-border)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                width: '100%',
+                fontSize: '0.9rem'
+              }}
+            >
+              <option value="" disabled>-- Izberi vprašalnik --</option>
+              {questionnaires.map(q => (
+                <option key={q.version} value={q.version}>
+                  {q.title || `Vprašalnik v${q.version}`} (v{q.version})
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
-        <div style={{ marginBottom: '22px' }}>
-          <label className="form-label" style={{ marginBottom: '10px', display: 'block', fontWeight: 600 }}>
-            Izberite pravila zrelosti
+        <div style={{ marginBottom: '24px' }}>
+          <label className="form-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 600 }}>
+            Pravila zrelosti *
           </label>
 
           {rulesVersions.length === 0 ? (
             <div style={{
               color: 'var(--text-secondary)',
-              fontSize: '0.88rem',
-              padding: '20px',
+              fontSize: '0.85rem',
+              padding: '12px',
               textAlign: 'center',
               background: 'rgba(255,255,255,0.02)',
               borderRadius: '8px',
               border: '1px dashed var(--panel-border)',
             }}>
-              Ni razpoložljivih pravil zrelosti. Obrnite se na administratorja.
+              Ni razpoložljivih pravil zrelosti.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {rulesVersions.map((r, idx) => {
-                const isSelected = r.version === selectedR;
-                return (
-                  <div
-                    key={r.version}
-                    onClick={() => setSelectedR(r.version)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      border: `2px solid ${isSelected ? 'var(--accent-color)' : 'var(--panel-border)'}`,
-                      background: isSelected ? 'rgba(88,166,255,0.08)' : 'rgba(255,255,255,0.02)',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      border: `2px solid ${isSelected ? 'var(--accent-color)' : 'var(--panel-border)'}`,
-                      background: isSelected ? 'var(--accent-color)' : 'transparent',
-                      flexShrink: 0,
-                      marginTop: '2px',
-                      transition: 'all 0.18s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      {isSelected && (
-                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#fff' }} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                        <span style={{
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        }}>
-                          {r.title || `Pravila v${r.version}`}
-                        </span>
-                        <span style={{
-                          fontSize: '0.7rem',
-                          color: 'var(--text-secondary)',
-                          background: 'rgba(255,255,255,0.06)',
-                          padding: '1px 6px',
-                          borderRadius: '8px',
-                        }}>
-                          v{r.version}
-                        </span>
-                      </div>
-                      {r.description && (
-                        <div style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.4,
-                        }}>
-                          {r.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <select
+              className="form-control"
+              value={selectedR || ''}
+              onChange={e => setSelectedR(e.target.value)}
+              style={{
+                background: 'var(--panel-bg)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--panel-border)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                width: '100%',
+                fontSize: '0.9rem'
+              }}
+            >
+              <option value="" disabled>-- Izberi pravila zrelosti --</option>
+              {rulesVersions.map(r => (
+                <option key={r.version} value={r.version}>
+                  {r.title || `Pravila v${r.version}`} (v{r.version})
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
@@ -549,7 +335,9 @@ export default function Dashboard({
   startNewAssessment,
   onEditAssessment,
   onNewVersionAssessment,
-  onViewHistoricVersion
+  onViewHistoricVersion,
+  onPreviewAnswers,
+  onSyncAssessment
 }) {
   const [versionPipeline, setVersionPipeline] = useState(null);
   const [showNewAssessmentModal, setShowNewAssessmentModal] = useState(false);
@@ -650,6 +438,44 @@ export default function Dashboard({
 
   const totalVersions = (p) => (p.versions?.length || 0);
 
+  const handleExportQuestionnaire = (p) => {
+    const pCats = getPipelineCategories(p, questionnaires);
+    if (!pCats || pCats.length === 0) {
+      alert('Strukture vprašalnika ni mogoče naložiti.');
+      return;
+    }
+
+    let textContent = `VPRAŠALNIK IN ODGOVORI ZA CEVOVOD: ${p.name || p.repoLink}\n`;
+    textContent += `Datum ocenjevanja: ${p.date}\n`;
+    textContent += `Stopnja zrelosti: Stopnja ${p.level} (${p.levelName || ''})\n`;
+    textContent += `Skupni rezultat: ${p.score}%\n`;
+    textContent += `========================================================================\n\n`;
+
+    pCats.forEach(cat => {
+      textContent += `KATEGORIJA: ${cat.title} (${cat.superCategory || ''})\n`;
+      if (cat.description) textContent += `Opis: ${cat.description}\n`;
+      textContent += `------------------------------------------------------------------------\n`;
+      
+      const items = cat.items || [];
+      items.forEach((item, idx) => {
+        const ans = p.answers ? p.answers[item.id] : 'NE';
+        textContent += `${idx + 1}. ${item.question || item.label}\n`;
+        textContent += `   Odgovor: ${ans}\n`;
+        if (item.description) textContent += `   Opis pogoja: ${item.description}\n`;
+        textContent += `\n`;
+      });
+      textContent += `\n`;
+    });
+
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vprasalnik_odgovori_${(p.name || 'cevovod').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div className="flex-between" style={{ marginBottom: '22px' }}>
@@ -705,7 +531,7 @@ export default function Dashboard({
               style={{ fontSize: '0.78rem', padding: '8px 12px' }}
               onClick={() => { setFilterName(''); setFilterRepo(''); setFilterDate(''); }}
             >
-              ✕ Počisti filtre
+              X Počisti filtre
             </button>
           )}
           <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
@@ -725,7 +551,7 @@ export default function Dashboard({
           </div>
         ) : filteredPipelines.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '10px', opacity: 0.3 }}>🔍</div>
+            <div style={{ fontSize: '2rem', marginBottom: '10px', opacity: 0.3 }}></div>
             <div style={{ fontWeight: 600, marginBottom: '6px' }}>Noben cevovod ne ustreza filtrom</div>
             <div style={{ fontSize: '0.85rem' }}>Poskusite spremeniti ali počistiti filtre.</div>
           </div>
@@ -786,7 +612,7 @@ export default function Dashboard({
                           animation: 'fadeIn 0.25s ease'
                         }}>
                           <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            ⚠️ Zaznane spremembe v vprašalniku ali pravilih!
+                            !️ Zaznane spremembe v vprašalniku ali pravilih!
                           </div>
                           <div style={{ fontSize: '0.72rem', opacity: 0.9, paddingLeft: '2px' }}>
                             {diff.added.length > 0 && <div>• Dodana nova vprašanja ({diff.added.length})</div>}
@@ -807,7 +633,7 @@ export default function Dashboard({
                               cursor: 'pointer',
                               fontWeight: 600
                             }}
-                            onClick={() => setUpdatingDiff({ pipeline: p, diff })}
+                            onClick={() => onSyncAssessment(p.id)}
                           >
                             Posodobi vprašalnik
                           </button>
@@ -838,6 +664,14 @@ export default function Dashboard({
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button
+                          className="btn btn-ghost"
+                          style={{ fontSize: '0.8rem' }}
+                          onClick={() => onPreviewAnswers(p)}
+                          title="Preglej shranjene odgovore (brez urejanja)"
+                        >
+                          Preglej odgovore
+                        </button>
+                        <button
                           className="btn"
                           style={{ fontSize: '0.8rem' }}
                           onClick={() => onEditAssessment(p.id)}
@@ -852,6 +686,14 @@ export default function Dashboard({
                           title="Ustvari novo različico pred urejanjem"
                         >
                           Nova verzija
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ fontSize: '0.8rem' }}
+                          onClick={() => handleExportQuestionnaire(p)}
+                          title="Izvozi vprašalnik in trenutne odgovore v tekstovno datoteko"
+                        >
+                          Izvozi vprašalnik
                         </button>
                         <button
                           className="btn btn-primary"

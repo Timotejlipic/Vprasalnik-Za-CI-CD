@@ -1,6 +1,10 @@
+@import "tailwindcss";
+
 :root {
   --bg-color: #0d1117;
+  --bg-main: #0d1117;
   --panel-bg: #161b22;
+  --header-bg: rgba(13, 17, 23, 0.85);
   --panel-border: #30363d;
   --text-primary: #c9d1d9;
   --text-secondary: #8b949e;
@@ -13,7 +17,28 @@
   --warning-color: #d29922;
   --card-bg: rgba(22, 27, 34, 0.6);
   --glass-border: rgba(255, 255, 255, 0.1);
+  --modal-overlay-bg: rgba(13, 17, 23, 0.88);
   --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root.light {
+  --bg-color: #f6f8fa;
+  --bg-main: #f6f8fa;
+  --panel-bg: #ffffff;
+  --header-bg: rgba(255, 255, 255, 0.85);
+  --panel-border: #d0d7de;
+  --text-primary: #24292f;
+  --text-secondary: #57606a;
+  --accent-color: #0969da;
+  --accent-hover: #0c57d0;
+  --success-color: #1a7f37;
+  --success-hover: #1f883d;
+  --danger-color: #cf222e;
+  --danger-bg: rgba(207, 34, 46, 0.1);
+  --warning-color: #9a6700;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.15);
+  --modal-overlay-bg: rgba(240, 242, 245, 0.85);
 }
 
 * {
@@ -166,7 +191,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background-color: rgba(13, 17, 23, 0.85);
+  background-color: var(--header-bg);
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
@@ -465,7 +490,7 @@ body {
 }
 
 .missing-items li::before {
-  content: "⚠";
+  content: "!";
   color: var(--warning-color);
   flex-shrink: 0;
 }
@@ -698,7 +723,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 17, 23, 0.88);
+  background: var(--modal-overlay-bg);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;

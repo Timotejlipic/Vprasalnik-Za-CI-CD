@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { evaluateAssessment, getFlatCategoriesItems } from '../utils.js';
+import { evaluateAssessment, getFlatCategoriesItems, openResultsInNewWindow } from '../utils.js';
 import { api } from '../api.js';
 import GitHubYamlViewer from './GitHubYamlViewer.jsx';
-import ResultsPanel from './ResultsPanel.jsx';
 
 function QuestionItem({ item, depth = 0, parentDisabled = false, currentAssessment, handleChange, toggleDesc, expandedDescs, isReadOnly = false }) {
   const val = currentAssessment[item.id];
@@ -165,6 +164,35 @@ function QuestionItem({ item, depth = 0, parentDisabled = false, currentAssessme
   );
 }
 
+function filterCategoryForSync(cat, addedItems) {
+  const addedIds = new Set(addedItems.map(item => item.id));
+
+  const filterItems = (items) => {
+    if (!items) return [];
+    return items
+      .map(item => {
+        const newItem = { ...item };
+        if (item.items && item.items.length > 0) {
+          newItem.items = filterItems(item.items);
+        }
+        return newItem;
+      })
+      .filter(item => {
+        const isDirectlyAdded = addedIds.has(item.id);
+        const hasActiveChildren = item.items && item.items.length > 0;
+        return isDirectlyAdded || hasActiveChildren;
+      });
+  };
+
+  const filteredItems = filterItems(cat.items);
+  if (filteredItems.length === 0) return null;
+
+  return {
+    ...cat,
+    items: filteredItems
+  };
+}
+
 export default function Assessment4({
   user, isLoggedIn, pipelines, setPipelines,
   currentAssessment, setCurrentAssessment, currentAssessmentId,
@@ -173,12 +201,22 @@ export default function Assessment4({
   isReadOnly = false,
   createNewVersionMode = false,
   historicVersion = null,
+  isSyncMode = false,
+  syncDiff = null,
   assessmentVersion,
   rulesVersion,
   isSidebarOpen,
   assessmentMeta = null,
   isLocked = false,
+  onCalculateResults,
 }) {
+  console.log("Assessment4 Sync Debug:", {
+    isSyncMode,
+    syncDiff: syncDiff ? { added: syncDiff.added.map(a => a.id) } : null,
+    categoriesCount: categories?.length,
+    categories: categories ? categories.map(c => ({ id: c.id, items: c.items?.map(i => i.id) })) : null
+  });
+
   const [name, setName] = useState(initialName);
   const [repoId, setRepoId] = useState('');
   const [repoLink, setRepoLink] = useState(initialRepoLink);
@@ -199,7 +237,9 @@ export default function Assessment4({
         const link = p.repoLink || '';
         setRepoLink(link);
         onRepoLinkChange?.(link);
-        handleCalculate(p.answers);
+        if (isReadOnly) {
+          handleCalculate(p.answers);
+        }
       }
     } else {
       setName(initialName);
@@ -210,7 +250,47 @@ export default function Assessment4({
     }
   }, [currentAssessmentId, pipelines, initialName, initialRepoLink]);
 
-  const handleRepoLinkChange = (val) => { setRepoLink(val); onRepoLinkChange?.(val); };
+  useEffect(() => {
+    window.triggerSaveFromResults = () => {
+      handleSave();
+    };
+    return () => {
+      delete window.triggerSaveFromResults;
+    };
+  }, [currentAssessment, name, repoId, repoLink, assessmentMeta, assessmentVersion, rulesVersion, createNewVersionMode, pipelines]);
+
+  const handleRepoLinkChange = (val) => {
+    setRepoLink(val);
+    onRepoLinkChange?.(val);
+    
+    // Automatically parse and extract name from repo link (e.g., "owner/repo" -> "Repo") if name is currently empty or just placeholder
+    if (val) {
+      try {
+        let extractedName = '';
+        if (val.includes('github.com') || val.includes('gitlab.com') || val.includes('bitbucket.org')) {
+          const parts = val.replace(/\/$/, '').split('/');
+          if (parts.length >= 2) {
+            const repoPart = parts[parts.length - 1];
+            // Capitalise first letter
+            extractedName = repoPart.charAt(0).toUpperCase() + repoPart.slice(1);
+          }
+        } else {
+          // General clean-up fallback
+          const parts = val.replace(/\/$/, '').split('/');
+          const repoPart = parts[parts.length - 1];
+          if (repoPart) {
+            extractedName = repoPart.charAt(0).toUpperCase() + repoPart.slice(1);
+          }
+        }
+        
+        if (extractedName && (!name || name === 'Novo ocenjevanje' || name === 'Brez imena')) {
+          setName(extractedName);
+        }
+      } catch (e) {
+        console.warn('Failed to extract name from repo link:', e);
+      }
+    }
+  };
 
   const handleChange = (id, value) => {
     if (isReadOnly) return;
@@ -220,11 +300,49 @@ export default function Assessment4({
   const handleCalculate = async (answersToEvaluate = currentAssessment) => {
     try {
       const res = await api.evaluate(answersToEvaluate, categories, rules);
-      setResults(res);
+      if (onCalculateResults) {
+        onCalculateResults({
+          answers: answersToEvaluate,
+          results: res,
+          categories,
+          rules,
+          isReadOnly,
+          title: name,
+          onSave: handleSave
+        });
+      } else {
+        openResultsInNewWindow({
+          answers: answersToEvaluate,
+          results: res,
+          categories,
+          rules,
+          isReadOnly,
+          title: name
+        });
+      }
     } catch (err) {
       console.warn('Backend evaluation failed, using local fallback:', err);
       const res = evaluateAssessment(answersToEvaluate, categories, rules);
-      setResults(res);
+      if (onCalculateResults) {
+        onCalculateResults({
+          answers: answersToEvaluate,
+          results: res,
+          categories,
+          rules,
+          isReadOnly,
+          title: name,
+          onSave: handleSave
+        });
+      } else {
+        openResultsInNewWindow({
+          answers: answersToEvaluate,
+          results: res,
+          categories,
+          rules,
+          isReadOnly,
+          title: name
+        });
+      }
     }
   };
 
@@ -315,20 +433,20 @@ export default function Assessment4({
             rulesVersion,
           });
         }
+      }
 
-        // Automatically complete the assignment if it was launched from an assigned task
-        if (assessmentMeta && assessmentMeta.assignmentId) {
-          try {
-            await api.completeAssignment(
-              assessmentMeta.assignmentId,
-              finalScore,
-              finalLevel,
-              savedPipe.id,
-              finalAnswers
-            );
-          } catch (err) {
-            console.error('Failed to complete assignment:', err);
-          }
+      // Automatically complete the assignment if it was launched from an assigned task
+      if (savedPipe && assessmentMeta && assessmentMeta.assignmentId) {
+        try {
+          await api.completeAssignment(
+            assessmentMeta.assignmentId,
+            finalScore,
+            finalLevel,
+            savedPipe.id,
+            finalAnswers
+          );
+        } catch (err) {
+          console.error('Failed to complete assignment:', err);
         }
       }
       const latestPipelines = await api.getPipelines();
@@ -348,6 +466,12 @@ export default function Assessment4({
   const countAnswered = (cat) => {
     return cat.items.filter(i => currentAssessment[i.id] && currentAssessment[i.id] !== '').length;
   };
+
+  const filteredCategories = isSyncMode && syncDiff
+    ? categories.map(cat => filterCategoryForSync(cat, syncDiff.added)).filter(Boolean)
+    : categories;
+
+  const safeActiveTab = Math.min(activeTab, Math.max(0, filteredCategories.length - 1));
 
   return (
     <div>
@@ -377,7 +501,7 @@ export default function Assessment4({
         </div>
       )}
 
-      {createNewVersionMode && (
+      {createNewVersionMode && !isSyncMode && (
         <div
           className="card"
           style={{
@@ -397,6 +521,31 @@ export default function Assessment4({
             <strong style={{ color: '#fff', fontSize: '0.95rem' }}>USTVARJANJE NOVE VERZIJE</strong>
             <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginTop: '2px' }}>
               Shranjevanje bo ustvarilo novo verzijo prejšnjega stanja.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSyncMode && (
+        <div
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, rgba(227, 179, 65, 0.15) 0%, rgba(227, 179, 65, 0.05) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(227, 179, 65, 0.25)',
+            borderLeft: '5px solid #e3b341',
+            padding: '14px 20px',
+            borderRadius: '8px',
+            marginBottom: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div>
+            <strong style={{ color: '#fff', fontSize: '0.95rem' }}>POSODOBITEV VPRAŠALNIKA</strong>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginTop: '2px' }}>
+              Vprašalnik posodabljate na novejšo različico. Spodaj so prikazana le nova vprašanja, ki jih je potrebno izpolniti. Ob shranjevanju bo ustvarjena nova različica.
             </div>
           </div>
         </div>
@@ -450,9 +599,9 @@ export default function Assessment4({
           {/* Category tabs + content */}
           <div className="responsive-flex-row" style={{ alignItems: 'start' }}>
             <div style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {categories.map((cat, idx) => {
+              {filteredCategories.map((cat, idx) => {
                 const answered = countAnswered(cat);
-                const isActive = activeTab === idx;
+                const isActive = safeActiveTab === idx;
                 return (
                   <button key={cat.id} className="btn" style={{ textAlign: 'left', padding: '11px 14px', fontWeight: isActive ? 700 : 500, borderLeft: isActive ? '4px solid #fff' : '4px solid transparent', background: isActive ? 'var(--accent-color)' : 'rgba(255,255,255,0.03)', color: isActive ? '#fff' : 'var(--text-primary)', border: 'none', borderRadius: '0 7px 7px 0', transition: 'all 0.2s', boxShadow: isActive ? '0 2px 8px rgba(88,166,255,0.35)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '0.85rem' }} onClick={() => setActiveTab(idx)}>
                     <span>{cat.title}</span>
@@ -464,8 +613,8 @@ export default function Assessment4({
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="card">
-                {categories[activeTab] && (() => {
-                  const cat = categories[activeTab];
+                {filteredCategories[safeActiveTab] && (() => {
+                  const cat = filteredCategories[safeActiveTab];
                   const presenceItem = cat.items.find(item => item.id.endsWith('_present'));
                   const isPresenceChecked = presenceItem 
                     ? (currentAssessment[presenceItem.id] === 'DA' || currentAssessment[presenceItem.id] === true)
@@ -536,8 +685,8 @@ export default function Assessment4({
                 })()}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-                <button className="btn btn-ghost" style={{ fontSize: '0.82rem' }} onClick={() => setActiveTab(t => Math.max(0, t - 1))} disabled={activeTab === 0}>Prejšnja kategorija</button>
-                <button className="btn btn-ghost" style={{ fontSize: '0.82rem' }} onClick={() => setActiveTab(t => Math.min(categories.length - 1, t + 1))} disabled={activeTab === categories.length - 1}>Naslednja kategorija</button>
+                <button className="btn btn-ghost" style={{ fontSize: '0.82rem' }} onClick={() => setActiveTab(t => Math.max(0, t - 1))} disabled={safeActiveTab === 0}>Prejšnja kategorija</button>
+                <button className="btn btn-ghost" style={{ fontSize: '0.82rem' }} onClick={() => setActiveTab(t => Math.min(filteredCategories.length - 1, t + 1))} disabled={safeActiveTab === filteredCategories.length - 1}>Naslednja kategorija</button>
               </div>
             </div>
           </div>
@@ -556,20 +705,6 @@ export default function Assessment4({
           </div>
         )}
       </div>
-
-      {/* Results — full width below the form */}
-      {results && (
-        <ResultsPanel 
-          results={results} 
-          onSave={handleSave} 
-          isLoggedIn={isLoggedIn} 
-          isReadOnly={isReadOnly} 
-          categories={categories}
-          rules={rules}
-          answers={currentAssessment}
-          onClose={() => setResults(null)}
-        />
-      )}
     </div>
   );
 }
