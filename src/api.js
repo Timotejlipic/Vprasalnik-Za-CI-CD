@@ -6,7 +6,7 @@ import clientQuestionnaireConfig2 from '../questionnaire2.json';
 import clientMaturityRules from '../maturity_rules.json';
 import clientMaturityRules2 from '../maturity_rules2.json';
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:3002`;
+const API_BASE = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:3002`;
 
 // Local storage keys for offline mock database
 const KEYS = {
