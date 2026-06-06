@@ -325,6 +325,12 @@ export default function Assessment1({
   const handleChange = (id, value) => {
     if (isReadOnly) return;
     setCurrentAssessment(prev => ({ ...prev, [id]: value }));
+    if (id.endsWith('_present') && (value === 'DA' || value === true)) {
+      const cat = categories.find(c => c.items.some(item => item.id === id));
+      if (cat) {
+        setOpenCategories(prev => ({ ...prev, [cat.id]: true }));
+      }
+    }
   };
 
   const handleCalculate = async (answersToEvaluate = currentAssessment) => {
@@ -554,62 +560,67 @@ export default function Assessment1({
             userSelect: 'none',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
             <span>{cat.title}</span>
             {presenceItem && (
               <div 
-                style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', marginLeft: '12px', fontSize: '0.85rem', fontWeight: 500, background: 'rgba(255,255,255,0.03)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--panel-border)' }}
-                onClick={e => e.stopPropagation()} // prepreči zlaganje/odpiranje accordion-a ob kliku na checkbox
+                style={{ 
+                  display: 'flex', 
+                  flex: 1, 
+                  justifyContent: 'space-between', 
+                  gap: '8px', 
+                  alignItems: 'center', 
+                  marginLeft: '12px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 500, 
+                  background: 'rgba(255,255,255,0.03)', 
+                  padding: '4px 10px', 
+                  borderRadius: '6px', 
+                  border: '1px solid var(--panel-border)' 
+                }}
               >
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
                   Prisoten v cevovodu:
                 </span>
-                {['DA', 'NA'].map(opt => {
-                  const presenceVal = currentAssessment[presenceItem.id];
-                  const isChecked = opt === 'DA'
-                    ? (presenceVal === 'DA' || presenceVal === true)
-                    : (presenceVal === 'NA');
-                  
-                  return (
-                    <label 
-                      key={opt} 
-                      className="checkbox-label" 
-                      style={{ 
-                        margin: 0, 
-                        padding: '2px 6px', 
-                        fontSize: '0.78rem',
-                        pointerEvents: isReadOnly ? 'none' : 'auto',
-                        cursor: isReadOnly ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={isReadOnly}
-                        checked={isChecked}
-                        onChange={() => {
-                          if (isReadOnly) return;
-                          handleChange(presenceItem.id, isChecked ? '' : opt);
+                <div 
+                  style={{ display: 'flex', gap: '8px' }}
+                  onClick={e => e.stopPropagation()} // prepreči zlaganje/odpiranje accordion-a ob kliku na checkbox
+                >
+                  {['DA', 'NA'].map(opt => {
+                    const presenceVal = currentAssessment[presenceItem.id];
+                    const isChecked = opt === 'DA'
+                      ? (presenceVal === 'DA' || presenceVal === true)
+                      : (presenceVal === 'NA');
+                    
+                    return (
+                      <label 
+                        key={opt} 
+                        className="checkbox-label" 
+                        style={{ 
+                          margin: 0, 
+                          padding: '2px 6px', 
+                          fontSize: '0.78rem',
+                          pointerEvents: isReadOnly ? 'none' : 'auto',
+                          cursor: isReadOnly ? 'not-allowed' : 'pointer'
                         }}
-                      />
-                      {opt === 'NA' ? '/' : 'DA'}
-                    </label>
-                  );
-                })}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={isReadOnly}
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isReadOnly) return;
+                            handleChange(presenceItem.id, isChecked ? '' : opt);
+                          }}
+                        />
+                        {opt === 'NA' ? '/' : 'DA'}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
-          <span
-            className="collapse-icon"
-            style={{
-              transition: 'transform 0.2s',
-              fontSize: '1.1rem',
-              display: 'inline-block',
-              opacity: 0.6,
-              transform: isOpen ? 'rotate(90deg)' : 'none'
-            }}
-          >
-            ▸
-          </span>
         </summary>
         <div style={{ padding: '6px 16px 10px' }}>
           {(presenceItem ? (presenceItem.items || []) : cat.items).map(item => (
