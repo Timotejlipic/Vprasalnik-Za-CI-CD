@@ -20,8 +20,8 @@ export default function Sidebar({ currentView, switchView, isLoggedIn, isOpen = 
         { id: 'rules', label: 'Pravila zrelosti' },
       ];
     }
-    if (userRole === 'user') {
-      return []; // standard users have no admin items!
+    if (userRole === 'user' || userRole === 'member') {
+      return []; // invited users and self-registered members have no admin items
     }
     return [
       { id: 'builder', label: 'Pregled vprašalnika' },

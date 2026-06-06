@@ -310,7 +310,7 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
         <td>${esc(u.name)}</td>
         <td>${esc(u.username)}</td>
         <td>${esc(u.email)}</td>
-        <td>${u.role === 'admin' ? 'Administrator' : 'Uporabnik'}</td>
+        <td>${u.role === 'admin' ? 'Administrator' : u.role === 'member' ? 'Registriran uporabnik' : 'Uporabnik'}</td>
       </tr>`).join('');
 
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -921,8 +921,8 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
                         <span style={{ fontSize: '0.85rem' }}>{u.email}</span>
                       </td>
                       <td>
-                        <span className={`badge ${u.role === 'admin' ? 'badge-blue' : 'badge-ghost'}`} style={{ fontSize: '0.72rem' }}>
-                          {u.role === 'admin' ? 'Administrator' : 'Uporabnik'}
+                        <span className={`badge ${u.role === 'admin' ? 'badge-blue' : u.role === 'member' ? 'badge-blue' : 'badge-ghost'}`} style={{ fontSize: '0.72rem' }}>
+                          {u.role === 'admin' ? 'Administrator' : u.role === 'member' ? 'Registriran uporabnik' : 'Uporabnik'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>

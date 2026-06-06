@@ -161,7 +161,7 @@ export const api = {
       const newUser = {
         id: 'u_offline_' + Date.now(),
         username,
-        role: 'user',
+        role: 'member',
         name: username,
         email: email || (username + '@example.com'),
         password

@@ -204,6 +204,10 @@ int main()
     {
         auto conn = db->acquire();
         pqxx::work txn(*conn);
+        // Allow the self-registered "member" role on existing databases.
+        txn.exec("ALTER TABLE app_users DROP CONSTRAINT IF EXISTS chk_app_user_role");
+        txn.exec("ALTER TABLE app_users ADD CONSTRAINT chk_app_user_role "
+                 "CHECK (role IN ('user', 'admin', 'member'))");
         txn.exec(
             "CREATE TABLE IF NOT EXISTS user_groups ("
             "  id BIGSERIAL PRIMARY KEY,"

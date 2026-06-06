@@ -304,7 +304,7 @@ CREATE TABLE app_users (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT chk_app_user_role
-        CHECK (role IN ('user', 'admin'))
+        CHECK (role IN ('user', 'admin', 'member'))
 );
 
 CREATE TRIGGER trg_app_users_updated_at

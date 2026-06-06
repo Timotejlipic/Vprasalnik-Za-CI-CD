@@ -7,6 +7,7 @@
 //   POST /api/auth/register  — create account, return JWT
 // =============================================================================
 
+#include <optional>
 #include <string>
 
 #include <httplib.h>
@@ -98,7 +99,9 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
         if (email.empty()) email = username;
 
         const std::string ph   = hash_password(password);
-        const auto        user = store.create_user(username, email, ph, "user");
+        // Self-registered accounts are "member": their own dashboard + new
+        // assessments, but no admin panels and not a restricted assignee.
+        const auto        user = store.create_user(username, email, ph, "member");
         const JwtPayload  payload{ user.id, user.username, user.role };
         const std::string token = sign_token(payload, secret);
 
