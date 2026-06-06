@@ -193,11 +193,32 @@ export const api = {
           localStorage.setItem(KEYS.USER, JSON.stringify(data.user));
           return data;
         }
+        if (res.status === 403) {
+          const err = await res.json().catch(() => ({}));
+          if (err.code === 'password_required') return { passwordRequired: true };
+        }
       } catch (err) {
         console.warn('Invite login failed, falling back to offline session:', err);
       }
     }
     return null;
+  },
+
+  // Invited user sets a password and is upgraded to a "member" account.
+  async upgradeAccount(password) {
+    const res = await fetch(`${API_BASE}/api/auth/upgrade`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Nadgradnja računa ni uspela.');
+    }
+    const data = await res.json();
+    localStorage.setItem(KEYS.TOKEN, data.token);
+    localStorage.setItem(KEYS.USER, JSON.stringify(data.user));
+    return data;
   },
 
   logout() {

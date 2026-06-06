@@ -12,7 +12,31 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
   const [categories, setCategories] = useState([]);
   const [rules, setRules] = useState([]);
 
+  // Account upgrade (invited "user" -> registered "member")
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgPassword, setUpgPassword] = useState('');
+  const [upgConfirm, setUpgConfirm] = useState('');
+  const [upgError, setUpgError] = useState('');
+  const [upgLoading, setUpgLoading] = useState(false);
+
   const loggedInUser = api.getCurrentUser();
+
+  const handleUpgrade = async () => {
+    setUpgError('');
+    if (!upgPassword || !upgConfirm) { setUpgError('Izpolnite obe polji.'); return; }
+    if (upgPassword.length < 6) { setUpgError('Geslo mora imeti vsaj 6 znakov.'); return; }
+    if (upgPassword !== upgConfirm) { setUpgError('Gesli se ne ujemata.'); return; }
+    setUpgLoading(true);
+    try {
+      await api.upgradeAccount(upgPassword);
+      // New "member" session is stored; reload so the app re-initialises on the
+      // dashboard with the upgraded role.
+      window.location.reload();
+    } catch (err) {
+      setUpgError(err.message || 'Nadgradnja ni uspela.');
+      setUpgLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -141,10 +165,69 @@ export default function UserAssessments({ user, isLoggedIn, switchView, startAss
           Pozdravljeni, {loggedInUser?.name || loggedInUser?.username || 'Ocenjevalec'}!
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: '1.5' }}>
-          Tukaj so zbrani vsi GitHub repozitoriji, ki so vam bili dodeljeni s strani administratorja. 
+          Tukaj so zbrani vsi GitHub repozitoriji, ki so vam bili dodeljeni s strani administratorja.
           Prosimo, da za vsak repozitorij spodaj izvedete podrobno oceno zrelosti CI/CD cevovoda.
         </p>
+        {loggedInUser?.role === 'user' && (
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-accent"
+              style={{ fontSize: '0.85rem' }}
+              onClick={() => { setShowUpgrade(true); setUpgError(''); setUpgPassword(''); setUpgConfirm(''); }}
+            >
+              Postani registriran uporabnik
+            </button>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Nastavite svoje geslo in se v prihodnje prijavljajte z njim.
+            </span>
+          </div>
+        )}
       </div>
+
+      {showUpgrade && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && !upgLoading) setShowUpgrade(false); }}>
+          <div className="modal-card" style={{ maxWidth: '420px', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem' }}>Postani registriran uporabnik</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 0 }}>
+              Nastavite geslo za svoj račun. Po nastavitvi se boste prijavljali z uporabniškim imenom
+              <strong> {loggedInUser?.username || loggedInUser?.email}</strong> in tem geslom.
+            </p>
+            <div className="form-group">
+              <label className="form-label">Novo geslo *</label>
+              <input
+                type="password"
+                className="form-control"
+                placeholder="Min. 6 znakov"
+                value={upgPassword}
+                onChange={e => setUpgPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Potrdi geslo *</label>
+              <input
+                type="password"
+                className="form-control"
+                placeholder="••••••••"
+                value={upgConfirm}
+                onChange={e => setUpgConfirm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleUpgrade()}
+              />
+            </div>
+            {upgError && (
+              <div style={{ color: 'var(--danger-color)', fontSize: '0.85rem', margin: '8px 0', background: 'var(--danger-bg)', padding: '8px 12px', borderRadius: '6px' }}>
+                {upgError}
+              </div>
+            )}
+            <div className="flex-between" style={{ gap: '10px', marginTop: '14px' }}>
+              <button className="btn btn-ghost" onClick={() => setShowUpgrade(false)} disabled={upgLoading}>Prekliči</button>
+              <button className="btn btn-accent" onClick={handleUpgrade} disabled={upgLoading} style={{ flex: 1 }}>
+                {upgLoading ? 'Shranjujem…' : 'Potrdi in nadgradi račun'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>

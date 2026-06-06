@@ -372,6 +372,26 @@ public:
                      r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
     }
 
+    // Invited user sets a password and is promoted "user" -> "member".
+    // (For non-"user" roles only the password changes.)
+    _MV_NODISCARD std::optional<User> upgrade_to_member(const std::string& id,
+                                                        const std::string& password_hash)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params(
+            "UPDATE app_users SET password_hash = $1, "
+            "role = CASE WHEN role = 'user' THEN 'member' ELSE role END "
+            "WHERE id = $2 RETURNING id, name, email, password_hash, role",
+            password_hash, _to_long(id));
+        if (r.empty()) { txn.commit(); return std::nullopt; }
+        User u{ r[0]["id"].as<std::string>(), r[0]["name"].as<std::string>(),
+                r[0]["email"].as<std::string>(),
+                r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
+        txn.commit();
+        return u;
+    }
+
     User create_user(const std::string& username, const std::string& email,
                      const std::string& password_hash, const std::string& role = "user")
     {

@@ -176,6 +176,15 @@ export default function App() {
           if (session && session.user) {
             savedUser = session.user;
             matchedUser = session.user;
+          } else if (session && session.passwordRequired) {
+            // This user upgraded to a registered account — require a password
+            // login instead of passwordless link access.
+            api.logout();
+            setPrefillEmail(inviteEmail || matchedUser.email || '');
+            setInitialShowLogin(true);
+            setAppState('landing');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
           } else {
             localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
             localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));

@@ -140,6 +140,15 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
         if (!user_opt && !email.empty()) user_opt = store.find_user_by_email(email);
         if (!user_opt) { send_err(res, 404, "User not found."); return; }
 
+        // Once an invited user upgrades to "member" (or for admins), passwordless
+        // link login is no longer allowed — they must log in with a password.
+        if (user_opt->role != "user")
+        {
+            send_json(res, 403, { {"error", "Password required."},
+                                  {"code",  "password_required"} });
+            return;
+        }
+
         const JwtPayload  payload{ user_opt->id, user_opt->username, user_opt->role };
         const std::string token = sign_token(payload, secret);
 
@@ -150,6 +159,44 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
                 {"username", user_opt->username},
                 {"email",    user_opt->email},
                 {"role",     user_opt->role},
+            }},
+        });
+    });
+
+    // =========================================================================
+    // POST /api/auth/upgrade
+    //   Authenticated invited user sets a password and becomes a "member".
+    //   Returns a fresh JWT carrying the new role.
+    // =========================================================================
+
+    server.Post("/api/auth/upgrade", [&store, &secret](const httplib::Request& req,
+                                                        httplib::Response&      res)
+    {
+        const auto auth_user = extract_user(req, secret);
+        if (!auth_user) { send_err(res, 401, "Authentication required."); return; }
+
+        const auto body = parse_body(req);
+        const std::string password = body.value("password", "");
+        if (password.size() < 6)
+        {
+            send_err(res, 400, "Password must be at least 6 characters.");
+            return;
+        }
+
+        const std::string ph      = hash_password(password);
+        const auto        updated = store.upgrade_to_member(auth_user->id, ph);
+        if (!updated) { send_err(res, 404, "User not found."); return; }
+
+        const JwtPayload  payload{ updated->id, updated->username, updated->role };
+        const std::string token = sign_token(payload, secret);
+
+        send_json(res, 200, {
+            {"token", token},
+            {"user",  nlohmann::json{
+                {"id",       updated->id},
+                {"username", updated->username},
+                {"email",    updated->email},
+                {"role",     updated->role},
             }},
         });
     });
