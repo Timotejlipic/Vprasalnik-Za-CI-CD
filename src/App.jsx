@@ -170,15 +170,34 @@ export default function App() {
         }
 
         if (matchedUser) {
-          // Force auto-login, overriding any stale active session!
-          localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
-          localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));
-          savedUser = matchedUser;
+          // Get a real backend session so server-side assignments load. Fall
+          // back to an offline mock session only if the backend is unreachable.
+          const session = await api.inviteLogin(matchedUser.username || matchedUser.email, matchedUser.email);
+          if (session && session.user) {
+            savedUser = session.user;
+            matchedUser = session.user;
+          } else {
+            localStorage.setItem('cicdq_token', 'mock_jwt_token_offline_' + matchedUser.id);
+            localStorage.setItem('cicdq_user', JSON.stringify(matchedUser));
+            savedUser = matchedUser;
+          }
 
           try {
             // Process assignments immediately!
             const reposList = urlRepos ? urlRepos.split(',') : [];
             const groupsList = urlGroups ? urlGroups.split(',') : [];
+
+            // Persist link assignments to the backend (deduped server-side).
+            if (reposList.length > 0) {
+              try {
+                await api.acceptInvite(reposList.map((repoLink, index) => ({
+                  repoLink,
+                  groupName: groupsList[index] || 'Skupina'
+                })));
+              } catch (e) {
+                console.warn('Failed to persist invite assignments to backend:', e);
+              }
+            }
 
             if (reposList.length > 0) {
               const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];

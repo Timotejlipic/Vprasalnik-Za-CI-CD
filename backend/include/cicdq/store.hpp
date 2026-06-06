@@ -358,6 +358,20 @@ public:
                      r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
     }
 
+    _MV_NODISCARD std::optional<User> find_user_by_email(const std::string& email) const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params(
+            "SELECT id, name, email, password_hash, role FROM app_users WHERE lower(email) = lower($1) LIMIT 1",
+            email);
+        txn.commit();
+        if (r.empty()) return std::nullopt;
+        return User{ r[0]["id"].as<std::string>(), r[0]["name"].as<std::string>(),
+                     r[0]["email"].as<std::string>(),
+                     r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
+    }
+
     User create_user(const std::string& username, const std::string& email,
                      const std::string& password_hash, const std::string& role = "user")
     {

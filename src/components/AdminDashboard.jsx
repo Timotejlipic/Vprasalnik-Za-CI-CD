@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, parseEmailToName } from '../api.js';
-import { convertConfigSectionsToCategories, openResultsInNewWindow } from '../utils.js';
+import { convertConfigSectionsToCategories, openResultsInNewWindow, copyToClipboard } from '../utils.js';
 
 // Helper to determine score colors
 function scoreColor(score) {
@@ -771,13 +771,15 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
                               <button 
                                 className="btn btn-accent" 
                                 style={{ fontSize: '0.72rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} 
-                                onClick={() => {
+                                onClick={async () => {
                                   const userAssignments = stat.assignments;
                                   const repoLinks = userAssignments.map(a => a.repoLink).join(',');
                                   const groupNames = userAssignments.map(a => a.groupName || 'Skupina').join(',');
                                   const inviteLink = `${window.location.origin}${window.location.pathname}?invite_email=${encodeURIComponent(stat.user.email)}&repos=${encodeURIComponent(repoLinks)}&groups=${encodeURIComponent(groupNames)}`;
-                                  navigator.clipboard?.writeText(inviteLink);
-                                  alert(`Povezava za reševanje za uporabnika ${stat.user.name} je kopirana!`);
+                                  const ok = await copyToClipboard(inviteLink);
+                                  alert(ok
+                                    ? `Povezava za reševanje za uporabnika ${stat.user.name} je kopirana!`
+                                    : `Kopiranje ni uspelo. Povezava:\n${inviteLink}`);
                                 }}
                               >
                                 ⎘ Kopiraj povezavo za ocenjevanje
@@ -1023,16 +1025,16 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn btn-accent" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={() => {
-                    navigator.clipboard?.writeText(createdUserInfo.directLink);
-                    alert('Direktna prijava kopirana!');
+                  <button className="btn btn-accent" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
+                    const ok = await copyToClipboard(createdUserInfo.directLink);
+                    alert(ok ? 'Direktna prijava kopirana!' : `Kopiranje ni uspelo. Povezava:\n${createdUserInfo.directLink}`);
                   }}>
                     ⎘ Kopiraj prijavni link
                   </button>
-                  
-                  <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={() => {
-                    navigator.clipboard?.writeText(createdUserInfo.emailBody);
-                    alert('Sporočilo povabila kopirano!');
+
+                  <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
+                    const ok = await copyToClipboard(createdUserInfo.emailBody);
+                    alert(ok ? 'Sporočilo povabila kopirano!' : 'Kopiranje ni uspelo.');
                   }}>
                      Kopiraj e-sporočilo
                   </button>

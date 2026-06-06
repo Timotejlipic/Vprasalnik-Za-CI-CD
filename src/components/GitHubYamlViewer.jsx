@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { copyToClipboard } from '../utils.js';
 
 function parseGitHubUrl(url) {
   try {
@@ -167,7 +168,7 @@ export default function GitHubYamlViewer({ repoLink = '', onFilesLoaded }) {
             <button
               className="btn btn-ghost"
               style={{ fontSize: '0.7rem', padding: '2px 7px' }}
-              onClick={() => navigator.clipboard?.writeText(fileContent)}
+              onClick={() => copyToClipboard(fileContent)}
               title="Kopiraj vsebino"
             >
               ⎘ Kopiraj

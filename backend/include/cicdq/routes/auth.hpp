@@ -114,6 +114,44 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
     });
 
     // =========================================================================
+    // POST /api/auth/invite-login
+    //   Link-based access: issue a JWT for an existing user identified by
+    //   username or e-mail (no password). Mirrors the invite-link auto-login.
+    // =========================================================================
+
+    server.Post("/api/auth/invite-login", [&store, &secret](const httplib::Request& req,
+                                                            httplib::Response&      res)
+    {
+        const auto body = parse_body(req);
+        const std::string username = body.value("username", "");
+        const std::string email    = body.value("email", "");
+
+        if (username.empty() && email.empty())
+        {
+            send_err(res, 400, "username or email is required.");
+            return;
+        }
+
+        std::optional<User> user_opt;
+        if (!username.empty()) user_opt = store.find_user_by_username(username);
+        if (!user_opt && !email.empty()) user_opt = store.find_user_by_email(email);
+        if (!user_opt) { send_err(res, 404, "User not found."); return; }
+
+        const JwtPayload  payload{ user_opt->id, user_opt->username, user_opt->role };
+        const std::string token = sign_token(payload, secret);
+
+        send_json(res, 200, {
+            {"token", token},
+            {"user",  nlohmann::json{
+                {"id",       user_opt->id},
+                {"username", user_opt->username},
+                {"email",    user_opt->email},
+                {"role",     user_opt->role},
+            }},
+        });
+    });
+
+    // =========================================================================
     // GET /api/users
     // =========================================================================
     server.Get("/api/users", [&store, &secret](const httplib::Request& req,

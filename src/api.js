@@ -176,6 +176,30 @@ export const api = {
     }
   },
 
+  // Link-based login: obtain a real backend JWT for an invited user by
+  // username/email (no password), so their assigned tasks load from the server.
+  async inviteLogin(username, email) {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/invite-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem(KEYS.TOKEN, data.token);
+          localStorage.setItem(KEYS.USER, JSON.stringify(data.user));
+          return data;
+        }
+      } catch (err) {
+        console.warn('Invite login failed, falling back to offline session:', err);
+      }
+    }
+    return null;
+  },
+
   logout() {
     localStorage.removeItem(KEYS.TOKEN);
     localStorage.removeItem(KEYS.USER);
