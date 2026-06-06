@@ -803,8 +803,19 @@ export default function App() {
         const urlGroups = invite.groups ? invite.groups.split(',') : [];
 
         if (urlRepos.length > 0) {
+          // Persist the invited user's assignments to the backend so the admin
+          // can see their completions across devices/browsers.
+          try {
+            await api.acceptInvite(urlRepos.map((repoLink, index) => ({
+              repoLink,
+              groupName: urlGroups[index] || 'Skupina'
+            })));
+          } catch (e) {
+            console.warn('Failed to persist invite assignments to backend:', e);
+          }
+
           const assignments = JSON.parse(localStorage.getItem('cicdq_offline_assignments')) || [];
-          
+
           // Clear any existing pending assignments for this user to avoid duplicates or mismatch
           const nonUserOrCompletedAsgns = assignments.filter(a => !(a.userId === currentUser.id && a.status === 'pending'));
           

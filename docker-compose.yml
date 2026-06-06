@@ -9,7 +9,7 @@ services:
     environment:
       - PORT=3002
       - JWT_SECRET=dev_secret_change_in_prod
-      - FRONTEND_ORIGIN=http://localhost:5173
+      - FRONTEND_ORIGIN=*
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/vprasalnik
     restart: unless-stopped
     depends_on:

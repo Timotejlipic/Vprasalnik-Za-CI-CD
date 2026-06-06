@@ -81,7 +81,7 @@ export default function LandingPage({ enterAsGuest, enterAsAdmin, initialShowLog
       return;
     }
     try {
-      const data = await api.register(regUsername, regPassword);
+      const data = await api.register(regUsername, regEmail, regPassword);
       enterAsAdmin(data.user.username);
     } catch (err) {
       setRegError(err.message || 'Registracija ni uspela.');

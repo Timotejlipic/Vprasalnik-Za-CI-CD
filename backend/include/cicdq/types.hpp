@@ -25,7 +25,8 @@ inline namespace v1
 struct User
 {
     std::string id;
-    std::string username;
+    std::string username;        // login identifier (app_users.name)
+    std::string email;           // contact e-mail (app_users.email)
     std::string password_hash;   // not serialised to JSON responses
     std::string role;            // "admin" | "user"
 };
@@ -33,7 +34,8 @@ struct User
 // Serialise without the password hash (safe for API responses)
 inline void to_json(nlohmann::json& j, const User& u)
 {
-    j = nlohmann::json{ {"id", u.id}, {"username", u.username}, {"role", u.role} };
+    j = nlohmann::json{ {"id", u.id}, {"username", u.username},
+                        {"email", u.email}, {"role", u.role} };
 }
 
 

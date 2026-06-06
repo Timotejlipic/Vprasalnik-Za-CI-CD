@@ -6,7 +6,9 @@ import clientQuestionnaireConfig2 from '../questionnaire2.json';
 import clientMaturityRules from '../maturity_rules.json';
 import clientMaturityRules2 from '../maturity_rules2.json';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:3002`;
+// Same-origin by default: the browser hits /api and /health on the frontend's
+// own port and Vite proxies them to the backend (see vite.config.js).
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 // Local storage keys for offline mock database
 const KEYS = {
@@ -131,13 +133,13 @@ export const api = {
     }
   },
 
-  async register(username, password) {
+  async register(username, email, password) {
     const online = await this.checkHealth();
     if (online) {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, email, password })
       });
       if (!res.ok) {
         const err = await res.json();
@@ -156,13 +158,13 @@ export const api = {
       if (users.some(u => u.username?.toLowerCase() === username?.toLowerCase())) {
         throw new Error('Uporabniško ime že obstaja.');
       }
-      const newUser = { 
-        id: 'u_offline_' + Date.now(), 
-        username, 
-        role: 'user', 
-        name: username, 
-        email: username + '@example.com',
-        password 
+      const newUser = {
+        id: 'u_offline_' + Date.now(),
+        username,
+        role: 'user',
+        name: username,
+        email: email || (username + '@example.com'),
+        password
       };
       users.push(newUser);
       localStorage.setItem(KEYS.USERS_DB, JSON.stringify(users));
@@ -1084,10 +1086,37 @@ export const api = {
   },
 
   async adminGetGroups() {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/groups`, { method: 'GET', headers: getHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem(KEYS.GROUPS, JSON.stringify(data));
+          return data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch groups online, using offline fallback:', err);
+      }
+    }
     return JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
   },
 
   async adminCreateGroup({ name, userIds, githubRepos, formVersion = '1.0', rulesVersion = '1.0' }) {
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/groups`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ name, userIds, githubRepos, formVersion, rulesVersion })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Ustvarjanje skupine ni uspelo.');
+      }
+      return await res.json();
+    }
+
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
     const repoConfigs = {};
     githubRepos.forEach(repoLink => {
@@ -1139,6 +1168,20 @@ export const api = {
   },
 
   async adminAddGroupMember(groupId, userId) {
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}/members`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ userId })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Dodajanje člana ni uspelo.');
+      }
+      return await res.json();
+    }
+
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
     const idx = groups.findIndex(g => g.id === groupId);
     if (idx === -1) throw new Error('Skupina ni bila najdena.');
@@ -1190,6 +1233,19 @@ export const api = {
   },
 
   async adminDeleteGroup(groupId) {
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Brisanje skupine ni uspelo.');
+      }
+      return true;
+    }
+
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
     const filteredGroups = groups.filter(g => g.id !== groupId);
     localStorage.setItem(KEYS.GROUPS, JSON.stringify(filteredGroups));
@@ -1202,12 +1258,25 @@ export const api = {
   },
 
   async adminRemoveGroupMember(groupId, userId) {
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}/members/${userId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Odstranjevanje člana ni uspelo.');
+      }
+      return await res.json();
+    }
+
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
     const idx = groups.findIndex(g => g.id === groupId);
     if (idx === -1) throw new Error('Skupina ni bila najdena.');
 
     const group = groups[idx];
-    group.userIds = group.userIds.filter(id => 
+    group.userIds = group.userIds.filter(id =>
       String(id) !== String(userId) && 
       id.toLowerCase() !== userId.toLowerCase()
     );
@@ -1232,7 +1301,21 @@ export const api = {
 
   async adminAddGroupRepo(groupId, repoLink, formVersion = '1.0', rulesVersion = '1.0') {
     if (!repoLink || !repoLink.trim()) throw new Error('Vnesite povezavo do GitHub repozitorija.');
-    
+
+    const online = await this.checkHealth();
+    if (online) {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}/repos`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ repoLink: repoLink.trim(), formVersion, rulesVersion })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Dodajanje repozitorija ni uspelo.');
+      }
+      return await res.json();
+    }
+
     const groups = JSON.parse(localStorage.getItem(KEYS.GROUPS)) || [];
     const idx = groups.findIndex(g => g.id === groupId);
     if (idx === -1) throw new Error('Skupina ni bila najdena.');
@@ -1289,13 +1372,54 @@ export const api = {
   },
 
   async adminGetAssignments() {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/assignments`, { method: 'GET', headers: getHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem(KEYS.ASSIGNMENTS, JSON.stringify(data));
+          return data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch assignments online, using offline fallback:', err);
+      }
+    }
     return JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
+  },
+
+  // Persist the current user's invite-link assignments to the backend.
+  async acceptInvite(repos) {
+    const online = await this.checkHealth();
+    if (!online) return [];
+    try {
+      const res = await fetch(`${API_BASE}/api/assignments/accept-invite`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ repos })
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Failed to accept invite online:', err);
+    }
+    return [];
   },
 
   async getUserAssignments(userId) {
     if (!userId) return [];
+
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/assignments/me`, { method: 'GET', headers: getHeaders() });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Failed to fetch user assignments online, using offline fallback:', err);
+      }
+    }
+
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
-    
+
     let u = null;
     try {
       const users = await this.adminGetUsers();
@@ -1318,6 +1442,21 @@ export const api = {
   },
 
   async completeAssignment(assignmentId, score, level, pipelineId, answers) {
+    const online = await this.checkHealth();
+    if (online) {
+      try {
+        const res = await fetch(`${API_BASE}/api/assignments/${assignmentId}/complete`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ score, level, pipelineId, answers: answers || {} })
+        });
+        if (res.ok) return await res.json();
+        // Not found on the server (e.g. a purely-local assignment): fall through.
+      } catch (err) {
+        console.warn('Failed to complete assignment online, using offline fallback:', err);
+      }
+    }
+
     const assignments = JSON.parse(localStorage.getItem(KEYS.ASSIGNMENTS)) || [];
     const idx = assignments.findIndex(a => a.id === assignmentId);
     if (idx > -1) {

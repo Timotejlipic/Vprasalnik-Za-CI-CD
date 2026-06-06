@@ -327,7 +327,7 @@ public:
     explicit Store(Db& db) : _db(db) {}
 
     // =========================================================================
-    // Users  (username <-> app_users.email)
+    // Users  (username <-> app_users.name, email <-> app_users.email)
     // =========================================================================
 
     _MV_NODISCARD std::optional<User> find_user_by_username(const std::string& username) const
@@ -335,11 +335,12 @@ public:
         auto conn = _db.acquire();
         pqxx::work txn(*conn);
         const auto r = txn.exec_params(
-            "SELECT id, email, password_hash, role FROM app_users WHERE email = $1 LIMIT 1",
+            "SELECT id, name, email, password_hash, role FROM app_users WHERE name = $1 LIMIT 1",
             username);
         txn.commit();
         if (r.empty()) return std::nullopt;
-        return User{ r[0]["id"].as<std::string>(), r[0]["email"].as<std::string>(),
+        return User{ r[0]["id"].as<std::string>(), r[0]["name"].as<std::string>(),
+                     r[0]["email"].as<std::string>(),
                      r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
     }
 
@@ -348,25 +349,26 @@ public:
         auto conn = _db.acquire();
         pqxx::work txn(*conn);
         const auto r = txn.exec_params(
-            "SELECT id, email, password_hash, role FROM app_users WHERE id = $1 LIMIT 1",
+            "SELECT id, name, email, password_hash, role FROM app_users WHERE id = $1 LIMIT 1",
             _to_long(id));
         txn.commit();
         if (r.empty()) return std::nullopt;
-        return User{ r[0]["id"].as<std::string>(), r[0]["email"].as<std::string>(),
+        return User{ r[0]["id"].as<std::string>(), r[0]["name"].as<std::string>(),
+                     r[0]["email"].as<std::string>(),
                      r[0]["password_hash"].as<std::string>(), r[0]["role"].as<std::string>() };
     }
 
-    User create_user(const std::string& username, const std::string& password_hash,
-                     const std::string& role = "user")
+    User create_user(const std::string& username, const std::string& email,
+                     const std::string& password_hash, const std::string& role = "user")
     {
         auto conn = _db.acquire();
         pqxx::work txn(*conn);
         const auto r = txn.exec_params(
             "INSERT INTO app_users (name, email, password_hash, role) "
             "VALUES ($1, $2, $3, $4) RETURNING id",
-            username, username, password_hash, role);
+            username, email, password_hash, role);
         txn.commit();
-        return User{ r[0]["id"].as<std::string>(), username, password_hash, role };
+        return User{ r[0]["id"].as<std::string>(), username, email, password_hash, role };
     }
 
     _MV_NODISCARD std::vector<User> find_all_users() const
@@ -374,11 +376,12 @@ public:
         auto conn = _db.acquire();
         pqxx::work txn(*conn);
         const auto r = txn.exec(
-            "SELECT id, email, password_hash, role FROM app_users ORDER BY id");
+            "SELECT id, name, email, password_hash, role FROM app_users ORDER BY id");
         std::vector<User> out;
         out.reserve(r.size());
         for (const auto& row : r)
-            out.push_back(User{ row["id"].as<std::string>(), row["email"].as<std::string>(),
+            out.push_back(User{ row["id"].as<std::string>(), row["name"].as<std::string>(),
+                                 row["email"].as<std::string>(),
                                  row["password_hash"].as<std::string>(), row["role"].as<std::string>() });
         txn.commit();
         return out;
@@ -391,6 +394,329 @@ public:
         const auto r = txn.exec_params("DELETE FROM app_users WHERE id = $1", _to_long(id));
         txn.commit();
         return r.affected_rows() > 0;
+    }
+
+    // =========================================================================
+    // Groups & Assignments
+    //   user_groups -> a named set of users + GitHub repos (+ per-repo config)
+    //   assignments -> one (user, repo) task that turns "completed" on submit
+    // =========================================================================
+
+    // Parse a (possibly NULL) JSONB field, returning `fallback` when NULL.
+    static nlohmann::json _parse_jsonb(const pqxx::field& f, const char* fallback)
+    {
+        return f.is_null() ? nlohmann::json::parse(fallback)
+                           : nlohmann::json::parse(f.as<std::string>());
+    }
+
+    // Derive "owner/repo" from a GitHub URL (mirrors the frontend helper).
+    static std::string _repo_name(const std::string& url)
+    {
+        std::string s = url;
+        const auto pos = s.find("://");
+        if (pos != std::string::npos) s = s.substr(pos + 3);
+        while (!s.empty() && s.back() == '/') s.pop_back();
+
+        std::vector<std::string> parts;
+        std::string cur;
+        for (char c : s)
+        {
+            if (c == '/') { if (!cur.empty()) parts.push_back(cur); cur.clear(); }
+            else cur += c;
+        }
+        if (!cur.empty()) parts.push_back(cur);
+
+        if (parts.size() >= 3) return parts[1] + "/" + parts[2];  // host/owner/repo
+        if (parts.size() == 2) return parts[1];
+        if (parts.size() == 1) return parts[0];
+        return url.empty() ? std::string("repo") : url;
+    }
+
+    static nlohmann::json _row_to_group(const pqxx::row& row)
+    {
+        return nlohmann::json{
+            {"id",          row["id"].as<std::string>()},
+            {"name",        _txt(row["name"])},
+            {"userIds",     _parse_jsonb(row["user_ids"],     "[]")},
+            {"githubRepos", _parse_jsonb(row["github_repos"], "[]")},
+            {"repoConfigs", _parse_jsonb(row["repo_configs"], "{}")},
+            {"createdAt",   _txt(row["created_at"]).substr(0, 10)},
+        };
+    }
+
+    static nlohmann::json _row_to_assignment(const pqxx::row& row)
+    {
+        nlohmann::json a;
+        a["id"]           = row["id"].as<std::string>();
+        a["userId"]       = _txt(row["user_id"]);
+        a["userEmail"]    = _txt(row["user_email"]);
+        a["userName"]     = _txt(row["user_name"]);
+        a["groupId"]      = _txt(row["group_id"]);
+        a["groupName"]    = _txt(row["group_name"]);
+        a["repoLink"]     = _txt(row["repo_link"]);
+        a["repoName"]     = _txt(row["repo_name"]);
+        a["status"]       = _txt(row["status"]);
+        a["score"]        = row["score"].is_null() ? nlohmann::json() : nlohmann::json(row["score"].as<int>());
+        a["level"]        = row["level"].is_null() ? nlohmann::json() : nlohmann::json(row["level"].as<int>());
+        a["pipelineId"]   = _txt(row["pipeline_id"]);
+        a["answers"]      = row["answers"].is_null() ? nlohmann::json() : nlohmann::json::parse(row["answers"].as<std::string>());
+        a["formVersion"]  = _txt(row["form_version"]);
+        a["rulesVersion"] = _txt(row["rules_version"]);
+        a["createdAt"]    = _txt(row["created_at"]).substr(0, 10);
+        a["completedAt"]  = row["completed_at"].is_null() ? nlohmann::json()
+                                                          : nlohmann::json(_txt(row["completed_at"]).substr(0, 10));
+        return a;
+    }
+
+    // Insert a (user, repo) assignment unless one already exists.
+    static void _ensure_assignment(pqxx::work& txn, long user_id,
+                                   const std::string& email, const std::string& name,
+                                   const std::string& group_id, const std::string& group_name,
+                                   const std::string& repo_link, const std::string& repo_name,
+                                   const std::string& form_v, const std::string& rules_v)
+    {
+        const auto ex = txn.exec_params(
+            "SELECT 1 FROM assignments WHERE user_id = $1 AND lower(repo_link) = lower($2) LIMIT 1",
+            user_id, repo_link);
+        if (!ex.empty()) return;
+        txn.exec_params(
+            "INSERT INTO assignments "
+            "(user_id, user_email, user_name, group_id, group_name, repo_link, repo_name, "
+            " status, form_version, rules_version) "
+            "VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9)",
+            user_id, email, name, group_id, group_name, repo_link, repo_name, form_v, rules_v);
+    }
+
+    nlohmann::json list_groups() const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec("SELECT * FROM user_groups ORDER BY id");
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& row : r) arr.push_back(_row_to_group(row));
+        txn.commit();
+        return arr;
+    }
+
+    nlohmann::json create_group(const std::string& name, const nlohmann::json& user_ids,
+                                const nlohmann::json& repos, const std::string& form_v,
+                                const std::string& rules_v)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+
+        nlohmann::json repo_cfgs = nlohmann::json::object();
+        for (const auto& repo : repos)
+            repo_cfgs[repo.get<std::string>()] =
+                nlohmann::json{ {"formVersion", form_v}, {"rulesVersion", rules_v} };
+
+        const auto ins = txn.exec_params(
+            "INSERT INTO user_groups (name, user_ids, github_repos, repo_configs) "
+            "VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb) RETURNING *",
+            name, user_ids.dump(), repos.dump(), repo_cfgs.dump());
+        const std::string group_id = ins[0]["id"].as<std::string>();
+
+        for (const auto& uid : user_ids)
+        {
+            const std::string user_id = uid.is_string() ? uid.get<std::string>()
+                                                        : std::to_string(uid.get<long long>());
+            const auto ur = txn.exec_params(
+                "SELECT name, email FROM app_users WHERE id = $1 LIMIT 1", _to_long(user_id));
+            if (ur.empty()) continue;
+            for (const auto& repo : repos)
+            {
+                const std::string link = repo.get<std::string>();
+                _ensure_assignment(txn, _to_long(user_id), _txt(ur[0]["email"]), _txt(ur[0]["name"]),
+                                   group_id, name, link, _repo_name(link), form_v, rules_v);
+            }
+        }
+
+        nlohmann::json out = _row_to_group(ins[0]);
+        txn.commit();
+        return out;
+    }
+
+    bool delete_group(const std::string& group_id)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        txn.exec_params("DELETE FROM assignments WHERE group_id = $1", group_id);
+        const auto r = txn.exec_params("DELETE FROM user_groups WHERE id = $1", _to_long(group_id));
+        txn.commit();
+        return r.affected_rows() > 0;
+    }
+
+    nlohmann::json add_group_member(const std::string& group_id, const std::string& user_id)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto g = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        if (g.empty()) { txn.commit(); return nlohmann::json(); }
+
+        nlohmann::json user_ids = _parse_jsonb(g[0]["user_ids"],     "[]");
+        nlohmann::json repos    = _parse_jsonb(g[0]["github_repos"], "[]");
+        nlohmann::json cfgs     = _parse_jsonb(g[0]["repo_configs"], "{}");
+        const std::string name  = _txt(g[0]["name"]);
+
+        bool present = false;
+        for (const auto& x : user_ids)
+        {
+            const std::string xs = x.is_string() ? x.get<std::string>() : std::to_string(x.get<long long>());
+            if (xs == user_id) { present = true; break; }
+        }
+        if (!present)
+        {
+            user_ids.push_back(user_id);
+            txn.exec_params("UPDATE user_groups SET user_ids = $1::jsonb WHERE id = $2",
+                            user_ids.dump(), _to_long(group_id));
+        }
+
+        const auto ur = txn.exec_params("SELECT name, email FROM app_users WHERE id = $1 LIMIT 1", _to_long(user_id));
+        if (!ur.empty())
+        {
+            for (const auto& repo : repos)
+            {
+                const std::string link = repo.get<std::string>();
+                std::string fv = "1.0", rv = "1.0";
+                if (cfgs.contains(link)) { fv = cfgs[link].value("formVersion", "1.0"); rv = cfgs[link].value("rulesVersion", "1.0"); }
+                _ensure_assignment(txn, _to_long(user_id), _txt(ur[0]["email"]), _txt(ur[0]["name"]),
+                                   group_id, name, link, _repo_name(link), fv, rv);
+            }
+        }
+
+        const auto g2 = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        nlohmann::json out = _row_to_group(g2[0]);
+        txn.commit();
+        return out;
+    }
+
+    nlohmann::json remove_group_member(const std::string& group_id, const std::string& user_id)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto g = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        if (g.empty()) { txn.commit(); return nlohmann::json(); }
+
+        nlohmann::json user_ids = _parse_jsonb(g[0]["user_ids"], "[]");
+        nlohmann::json filtered = nlohmann::json::array();
+        for (const auto& x : user_ids)
+        {
+            const std::string xs = x.is_string() ? x.get<std::string>() : std::to_string(x.get<long long>());
+            if (xs != user_id) filtered.push_back(x);
+        }
+        txn.exec_params("UPDATE user_groups SET user_ids = $1::jsonb WHERE id = $2",
+                        filtered.dump(), _to_long(group_id));
+        txn.exec_params(
+            "DELETE FROM assignments WHERE group_id = $1 AND user_id = $2 AND status = 'pending'",
+            group_id, _to_long(user_id));
+
+        const auto g2 = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        nlohmann::json out = _row_to_group(g2[0]);
+        txn.commit();
+        return out;
+    }
+
+    nlohmann::json add_group_repo(const std::string& group_id, const std::string& repo_link,
+                                  const std::string& form_v, const std::string& rules_v)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto g = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        if (g.empty()) { txn.commit(); return nlohmann::json(); }
+
+        nlohmann::json repos    = _parse_jsonb(g[0]["github_repos"], "[]");
+        nlohmann::json cfgs     = _parse_jsonb(g[0]["repo_configs"], "{}");
+        nlohmann::json user_ids = _parse_jsonb(g[0]["user_ids"],     "[]");
+        const std::string name  = _txt(g[0]["name"]);
+
+        for (const auto& r : repos)
+            if (r.get<std::string>() == repo_link) { nlohmann::json out = _row_to_group(g[0]); txn.commit(); return out; }
+
+        repos.push_back(repo_link);
+        cfgs[repo_link] = nlohmann::json{ {"formVersion", form_v}, {"rulesVersion", rules_v} };
+        txn.exec_params("UPDATE user_groups SET github_repos = $1::jsonb, repo_configs = $2::jsonb WHERE id = $3",
+                        repos.dump(), cfgs.dump(), _to_long(group_id));
+
+        for (const auto& uid : user_ids)
+        {
+            const std::string user_id = uid.is_string() ? uid.get<std::string>() : std::to_string(uid.get<long long>());
+            const auto ur = txn.exec_params("SELECT name, email FROM app_users WHERE id = $1 LIMIT 1", _to_long(user_id));
+            if (ur.empty()) continue;
+            _ensure_assignment(txn, _to_long(user_id), _txt(ur[0]["email"]), _txt(ur[0]["name"]),
+                               group_id, name, repo_link, _repo_name(repo_link), form_v, rules_v);
+        }
+
+        const auto g2 = txn.exec_params("SELECT * FROM user_groups WHERE id = $1 LIMIT 1", _to_long(group_id));
+        nlohmann::json out = _row_to_group(g2[0]);
+        txn.commit();
+        return out;
+    }
+
+    nlohmann::json list_assignments() const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec("SELECT * FROM assignments ORDER BY id");
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& row : r) arr.push_back(_row_to_assignment(row));
+        txn.commit();
+        return arr;
+    }
+
+    nlohmann::json list_user_assignments(const std::string& user_id) const
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params("SELECT * FROM assignments WHERE user_id = $1 ORDER BY id", _to_long(user_id));
+        nlohmann::json arr = nlohmann::json::array();
+        for (const auto& row : r) arr.push_back(_row_to_assignment(row));
+        txn.commit();
+        return arr;
+    }
+
+    nlohmann::json complete_assignment(const std::string& assignment_id, int score, int level,
+                                       const std::string& pipeline_id, const nlohmann::json& answers)
+    {
+        auto conn = _db.acquire();
+        pqxx::work txn(*conn);
+        const auto r = txn.exec_params(
+            "UPDATE assignments SET status='completed', score=$1, level=$2, pipeline_id=$3, "
+            " answers=$4::jsonb, completed_at=CURRENT_TIMESTAMP WHERE id=$5 RETURNING *",
+            score, level, pipeline_id, answers.dump(), _to_long(assignment_id));
+        if (r.empty()) { txn.commit(); return nlohmann::json(); }
+        nlohmann::json out = _row_to_assignment(r[0]);
+        txn.commit();
+        return out;
+    }
+
+    // Create assignments for the current user from an invite link's repo list.
+    nlohmann::json accept_invite(const std::string& user_id, const nlohmann::json& repos)
+    {
+        {
+            auto conn = _db.acquire();
+            pqxx::work txn(*conn);
+            const auto ur = txn.exec_params("SELECT name, email FROM app_users WHERE id = $1 LIMIT 1", _to_long(user_id));
+            if (!ur.empty())
+            {
+                for (const auto& item : repos)
+                {
+                    std::string link, group_name = "Skupina", fv = "1.0", rv = "1.0";
+                    if (item.is_string()) { link = item.get<std::string>(); }
+                    else if (item.is_object())
+                    {
+                        link       = item.value("repoLink",     std::string());
+                        group_name = item.value("groupName",    std::string("Skupina"));
+                        fv         = item.value("formVersion",  std::string("1.0"));
+                        rv         = item.value("rulesVersion", std::string("1.0"));
+                    }
+                    if (link.empty()) continue;
+                    _ensure_assignment(txn, _to_long(user_id), _txt(ur[0]["email"]), _txt(ur[0]["name"]),
+                                       "", group_name, link, _repo_name(link), fv, rv);
+                }
+            }
+            txn.commit();
+        }
+        return list_user_assignments(user_id);
     }
 
     // =========================================================================

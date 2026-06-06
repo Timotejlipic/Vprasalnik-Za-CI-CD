@@ -75,6 +75,7 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
 
         const std::string username = body.value("username", "");
         const std::string password = body.value("password", "");
+        std::string       email    = body.value("email", "");
 
         if (username.empty() || password.empty())
         {
@@ -92,8 +93,12 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
             return;
         }
 
+        // E-mail is optional in the form; fall back to the username so the
+        // NOT NULL UNIQUE email column stays populated.
+        if (email.empty()) email = username;
+
         const std::string ph   = hash_password(password);
-        const auto        user = store.create_user(username, ph, "user");
+        const auto        user = store.create_user(username, email, ph, "user");
         const JwtPayload  payload{ user.id, user.username, user.role };
         const std::string token = sign_token(payload, secret);
 
@@ -102,6 +107,7 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
             {"user",  nlohmann::json{
                 {"id",       user.id},
                 {"username", user.username},
+                {"email",    user.email},
                 {"role",     user.role},
             }},
         });
@@ -123,7 +129,7 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
         {
             arr.push_back(nlohmann::json{
                 {"id",       u.id},
-                {"email",    u.username},
+                {"email",    u.email},
                 {"name",     u.username},
                 {"username", u.username},
                 {"role",     u.role}
@@ -160,11 +166,12 @@ inline void register_auth_routes(httplib::Server& server, Store& store,
         }
 
         const std::string ph   = hash_password(password);
-        const auto        user = store.create_user(email, ph, role);
+        // Admin-created accounts use the e-mail as the login username too.
+        const auto        user = store.create_user(email, email, ph, role);
 
         send_json(res, 201, nlohmann::json{
             {"id",       user.id},
-            {"email",    user.username},
+            {"email",    user.email},
             {"name",     user.username},
             {"username", user.username},
             {"role",     user.role}

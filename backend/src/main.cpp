@@ -19,6 +19,7 @@
 #include "cicdq/routes/rules.hpp"
 #include "cicdq/routes/assessment.hpp"
 #include "cicdq/routes/questionnaire.hpp"
+#include "cicdq/routes/assignments.hpp"
 
 
 // =============================================================================
@@ -197,6 +198,50 @@ int main()
     }
 
     // =========================================================================
+    // Auto-create groups & assignments tables (server-side assignment tracking)
+    // =========================================================================
+    try
+    {
+        auto conn = db->acquire();
+        pqxx::work txn(*conn);
+        txn.exec(
+            "CREATE TABLE IF NOT EXISTS user_groups ("
+            "  id BIGSERIAL PRIMARY KEY,"
+            "  name VARCHAR(255) NOT NULL,"
+            "  user_ids JSONB NOT NULL DEFAULT '[]'::jsonb,"
+            "  github_repos JSONB NOT NULL DEFAULT '[]'::jsonb,"
+            "  repo_configs JSONB NOT NULL DEFAULT '{}'::jsonb,"
+            "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            ")");
+        txn.exec(
+            "CREATE TABLE IF NOT EXISTS assignments ("
+            "  id BIGSERIAL PRIMARY KEY,"
+            "  user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,"
+            "  user_email VARCHAR(255) NOT NULL DEFAULT '',"
+            "  user_name VARCHAR(255) NOT NULL DEFAULT '',"
+            "  group_id VARCHAR(255) NOT NULL DEFAULT '',"
+            "  group_name VARCHAR(255) NOT NULL DEFAULT '',"
+            "  repo_link TEXT NOT NULL,"
+            "  repo_name VARCHAR(255) NOT NULL DEFAULT '',"
+            "  status VARCHAR(50) NOT NULL DEFAULT 'pending',"
+            "  score INT,"
+            "  level INT,"
+            "  pipeline_id VARCHAR(255) NOT NULL DEFAULT '',"
+            "  answers JSONB,"
+            "  form_version VARCHAR(50) NOT NULL DEFAULT '1.0',"
+            "  rules_version VARCHAR(50) NOT NULL DEFAULT '1.0',"
+            "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            "  completed_at TIMESTAMP"
+            ")");
+        txn.commit();
+        std::cout << "[cicdq C++] user_groups & assignments tables ready.\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[cicdq C++] Error creating groups/assignments tables: " << e.what() << "\n";
+    }
+
+    // =========================================================================
     // HTTP server
     // =========================================================================
 
@@ -265,6 +310,7 @@ int main()
     cicdq::register_rules_routes         (server, store, jwt_secret);
     cicdq::register_assessment_routes    (server, store);
     cicdq::register_questionnaire_routes (server, store, jwt_secret);
+    cicdq::register_assignment_routes    (server, store, jwt_secret);
 
     // =========================================================================
     // Listen

@@ -150,7 +150,7 @@ export default function ResultsPanel({
   };
 
   const mainContent = (
-    <div className={isInline ? "" : "modal-card modal-card-wide"} style={isInline ? { width: '100%', padding: 0 } : { maxWidth: '920px', maxHeight: '90vh', overflowY: 'auto', padding: 0 }}>
+    <div className={isInline ? "results-printable" : "modal-card modal-card-wide results-printable"} style={isInline ? { width: '100%', padding: 0 } : { maxWidth: '920px', maxHeight: '90vh', overflowY: 'auto', padding: 0 }}>
       {/* Premium Modal Header */}
         <div
           style={{
@@ -452,8 +452,8 @@ export default function ResultsPanel({
                 printStyle.innerHTML = `
                   @media print {
                     body * { visibility: hidden; }
-                    .modal-card, .modal-card * { visibility: visible; }
-                    .modal-card { position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; border: none !important; background: #fff !important; color: #000 !important; }
+                    .results-printable, .results-printable * { visibility: visible; }
+                    .results-printable { position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; border: none !important; background: #fff !important; color: #000 !important; }
                     .btn, button, .modal-overlay { display: none !important; }
                     .score-circle { border: 4px solid var(--score-color) !important; background: transparent !important; }
                   }
