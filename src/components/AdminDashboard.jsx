@@ -267,15 +267,23 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
       // Create invitation link
       const directLink = `${window.location.origin}${window.location.pathname}?invite_email=${encodeURIComponent(created.email)}`;
       const setPasswordLink = `${window.location.origin}${window.location.pathname}?set_password=${encodeURIComponent(created.email)}`;
+      const emailSubject = 'Vabilo v sistem MaturityVault';
       const emailBody = `Pozdravljeni, ${created.name}!\n\nDodani ste bili v sistem MaturityVault za ocenjevanje CI/CD cevovodov.\n\nDo svojega profila in dodeljenih nalog lahko neposredno dostopate preko naslednje povezave:\n${directLink}\n\nUporabniško ime: ${created.username}\n\nCe zelite nastaviti lastno geslo za prijavo, kliknite na naslednjo povezavo:\n${setPasswordLink}\n\nLep pozdrav,\nVas Administrator`;
-      
+
+      // Build a mailto: link and open the admin's own mail client, pre-filled.
+      // The invite is sent from whichever admin is logged in — no SMTP config,
+      // and the "From" is automatically that admin's address.
+      const mailtoLink = `mailto:${created.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+      window.location.href = mailtoLink;
+
       setCreatedUserInfo({
         user: created,
         directLink,
         setPasswordLink,
-        emailBody
+        emailBody,
+        mailtoLink
       });
-      
+
       // Reset input fields
       setNewUserEmail('');
     } catch (err) {
@@ -993,9 +1001,9 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
               </button>
             </div>
 
-            {/* Simulated Invitation Log */}
+            {/* Invitation e-mail (opens in the admin's own mail client) */}
             {createdUserInfo && (
-              <div style={{ 
+              <div style={{
                 marginTop: '16px',
                 padding: '16px',
                 background: 'rgba(46,160,67,0.08)',
@@ -1006,26 +1014,32 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
                   ✓ Uporabnik je bil uspešno ustvarjen!
                 </h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: '1.4' }}>
-                  Ker nimamo pravega e-poštnega strežnika, smo e-pošto s povabilom **simulirali**.
-                  Kopirajte spodnje sporočilo ali uporabite direktni link za vstop:
+                  Odprl se je vaš e-poštni odjemalec s pripravljenim povabilom za <strong>{createdUserInfo.user.email}</strong> — samo še pritisnite Pošlji.
+                  Sporočilo bo poslano z vašega e-naslova. Če se odjemalec ni odprl, uporabite gumb spodaj.
                 </p>
 
-                <div style={{ 
-                  background: 'var(--bg-color)', 
-                  border: '1px solid var(--panel-border)', 
-                  borderRadius: '6px', 
-                  padding: '8px 10px', 
-                  fontFamily: 'monospace', 
-                  fontSize: '0.72rem', 
-                  wordBreak: 'break-all', 
-                  color: 'var(--accent-color)', 
-                  marginBottom: '10px' 
+                <div style={{
+                  background: 'var(--bg-color)',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: '6px',
+                  padding: '8px 10px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.72rem',
+                  wordBreak: 'break-all',
+                  color: 'var(--accent-color)',
+                  marginBottom: '10px'
                 }}>
                   {createdUserInfo.directLink}
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn btn-accent" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button className="btn btn-accent" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={() => {
+                    window.location.href = createdUserInfo.mailtoLink;
+                  }}>
+                    ✉ Odpri e-pošto
+                  </button>
+
+                  <button className="btn btn-ghost" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={async () => {
                     const ok = await copyToClipboard(createdUserInfo.directLink);
                     alert(ok ? 'Direktna prijava kopirana!' : `Kopiranje ni uspelo. Povezava:\n${createdUserInfo.directLink}`);
                   }}>
