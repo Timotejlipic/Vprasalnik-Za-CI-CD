@@ -1,0 +1,60 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: cicdq-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: cicdq-backend
+    environment:
+      - PORT=3002
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_ORIGIN=https://${DOMAIN}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/vprasalnik
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        - VITE_API_BASE_URL=https://${DOMAIN}
+    container_name: cicdq-frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    container_name: cicdq-db
+    environment:
+      - POSTGRES_DB=vprasalnik
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./vprasalnik.sql:/docker-entrypoint-initdb.d/vprasalnik.sql
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
