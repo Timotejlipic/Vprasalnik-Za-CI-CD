@@ -96,9 +96,8 @@ Projekt je razdeljen na dva glavna dela:
 
 Frontend dokumentacija je dostopna tukaj:
 
-```text
-https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD/blob/main/frontend-README.md
-```
+[Frontend dokumentacija](https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD/blob/main/frontend-README.md)
+
 
 V frontend dokumentaciji so opisani:
 
@@ -112,9 +111,7 @@ V frontend dokumentaciji so opisani:
 
 Backend dokumentacija je dostopna tukaj:
 
-```text
-https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD/blob/main/backend-README.md
-```
+[Backend dokumentacija](https://github.com/Timotejlipic/Vprasalnik-Za-CI-CD/blob/main/backend-README.md)
 
 V backend dokumentaciji so opisani:
 
