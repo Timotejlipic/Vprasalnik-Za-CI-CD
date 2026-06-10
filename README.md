@@ -321,9 +321,8 @@ Priporočen način za zagon backenda je zato uporaba Dockerja.
 
 Delujoča rešitev je dostopna tukaj:
 
-```text
+
 http://193.77.152.232:5173/
-```
 
 Če aplikacija še ni objavljena na spletu, jo lahko lokalno zaženete z Dockerjem in odprete na naslovu:
 
