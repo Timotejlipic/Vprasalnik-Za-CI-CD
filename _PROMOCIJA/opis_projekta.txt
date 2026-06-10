@@ -1,0 +1,17 @@
+Vprašalnik za popisovanje CI/CD cevovodov
+
+Vprašalnik za popisovanje CI/CD cevovodov je spletna aplikacija, namenjena strukturiranemu pregledu, dokumentiranju in ocenjevanju zrelosti CI/CD procesov.
+
+CI/CD cevovodi so pomemben del sodobnega razvoja programske opreme, saj omogočajo avtomatizirano gradnjo, testiranje in nameščanje aplikacij. 
+V praksi pa se ekipe pogosto srečujejo s težavo, da nimajo jasnega pregleda nad tem, katere aktivnosti njihov cevovod že vključuje, 
+kako dobro so te aktivnosti implementirane in kaj bi bilo treba izboljšati za doseganje višje stopnje zrelosti.
+
+Aplikacija rešuje ta problem z uporabo strukturiranega vprašalnika. 
+Uporabnik za posamezen CI/CD cevovod odgovori na vprašanja o različnih področjih razvojnega procesa, kot so gradnja aplikacije, testiranje, nameščanje, spremljanje delovanja, varnost in dodatni pogoji cevovoda. 
+Na podlagi teh odgovorov sistem izračuna stopnjo zrelosti cevovoda in prikaže rezultat.
+
+Poleg dosežene stopnje zrelosti aplikacija uporabniku prikaže tudi, kateri pogoji so že izpolnjeni in kateri še manjkajo za doseganje naslednje stopnje. 
+Na ta način sistem ne služi samo kot orodje za ocenjevanje, temveč tudi kot pomoč pri načrtovanju izboljšav CI/CD procesa.
+
+Aplikacija je namenjena razvijalcem, DevOps ekipam, vodjem projektov, študentom in vsem, 
+ki želijo bolje razumeti ter izboljšati svoje CI/CD cevovode.
