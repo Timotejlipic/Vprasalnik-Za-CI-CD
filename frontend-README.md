@@ -35,7 +35,7 @@ src/
     ├── Collapsible.jsx       # Pomožna komponenta za zložljive elemente v vprašalniku
     ├── Dashboard.jsx         # Glavna nadzorna plošča (seznam cevovodov, grafi, sinhronizacija)
     ├── GitHubYamlViewer.jsx  # Prikaz in statična analiza GitHub Actions YAML konfiguracij
-    ├── Header.jsx            # Glavna vrhnja navigacija s profilom, preklopom teme in stikalom za stransko vrstico
+    ├── Header.jsx            # Glavna navigacija s profilom, preklopom teme in stikalom za stransko vrstico
     ├── LandingPage.jsx       # Prijavno-registracijska stran z obrazci
     ├── ResultsPanel.jsx      # Podroben prikaz rezultatov ocene z napotki za izboljšavo
     ├── Rules.jsx             # Urejevalnik pravil zrelosti (Rules Manager)
@@ -45,42 +45,42 @@ src/
 
 ---
 
-## Opis Ključnih Komponent (Component Details)
+## Opis Ključnih Komponent
 
 ### 1. `App.jsx`
 Glaven del aplikacije. Upravlja naslednje naloge:
 * **Globalna stanja**: Seznam cevovodov, kategorij, pravil, aktivnega uporabnika, varnostnih žetonov (JWT) in trenutnega pogleda (`currentView`).
 * **Usmerjevalnik (Routing)**: Preklaplja med prijavnim zaslonom in glavnim delom aplikacije ter dinamično izrisuje ustrezen pogled glede na izbrano možnost v stranski vrstici.
-* **Globalni Custom Alert**: Vsebuje preglasan `window.alert` mehanizem, ki namesto privzetega brskalniškega opozorila prikaže vrhunsko oblikovano modalno okno z ustreznim kontekstom (Uspeh/Napaka).
-* **Samodejna prijava iz vabila**: Ob zagonu analizira URL parametre (`invite_email`, `set_password`, `repos`, `groups`) in samodejno vodi uporabnika skozi ustrezen tok (npr. nastavitev gesla ob prejetem vabilu).
+* **Globalni Custom Alert**: Vsebuje preglasan `window.alert` mehanizem, ki namesto privzetega brskalniškega opozorila prikaže modalno okno z ustreznim kontekstom (Uspeh/Napaka).
+* **Samodejna prijava iz vabila**: Ob zagonu analizira URL parametre (`invite_email`, `set_password`, `repos`, `groups`) in samodejno vodi uporabnika skozi ustrezen tok (npr. dodeljene pravilne naloge).
 
 ### 2. `LandingPage.jsx`
 Prvi zaslon, ki ga vidi neprijavljen uporabnik. Ponuja:
 * Prijava uporabnika (`username`/`password`).
 * Registracija novega računa.
 * Stran za nastavitev gesla (sproži se prek unikatne povezave iz vabila).
-* Možnost vstopa kao gost (guest mode) z omejenimi pravicami branja.
+* Možnost vstopa kot gost z omejenimi pravicami branja in brez možnosti shranjevanja.
 
 ### 3. `Dashboard.jsx`
 Osrednja stran za pregled zrelosti cevovodov. Vključuje:
-* Vizualni graf s povprečnimi nivoji zrelosti v obliki krožnih indikatorjev (Gauge charts).
+* Vizualni graf s povprečnimi nivoji zrelosti v obliki krožnih indikatorjev.
 * Seznam vseh ocenjenih CI/CD cevovodov s hitrimi informacijami o različici in nivoju zrelosti.
-* Iskalnik in filtre za hitro brskanje med projekti.
+* Iskalnik in filtri za hitro brskanje med projekti.
 * **Sinhronizacija**: Administratorjem omogoča posodobitev starejših cevovodov na najnovejšo različico vprašalnika z avtomatskim kreiranjem zgodovinske varnostne kopije.
-* **Poenostavljeno Novo Ocenjevanje**: Novo ocenjevanje se zažene preko kompaktnega in preglednega pojavnega okna, ki omogoča enostaven in čist izbiro različnih verzij vprašalnikov ter pravil zrelosti s pomočjo select dropdown elementov.
+* **Novo Ocenjevanje**: Novo ocenjevanje se zažene preko kompaktnega in preglednega pojavnega okna, ki omogoča enostavno izbiro različnih verzij vprašalnikov ter pravil zrelosti s pomočjo dropdown elementov.
 
 ### 4. `AdminDashboard.jsx`
 Nadzorna plošča za upravljanje sistema (samo za administratorje):
 * **Upravljanje uporabnikov**: Ustvarjanje, urejanje vlog (admin/user) in brisanje uporabnikov.
-* **Upravljanje skupin**: Ustvarjanje razvojnih skupin/timov.
-* **Dodeljevanje ocen**: Možnost dodelitve specifičnega repozitorija in skupine določenemu uporabniku z avtomatskim generiranjem unikatne vabilne povezave za reševanje.
+* **Upravljanje skupin**: Ustvarjanje razvojnih skupin.
+* **Dodeljevanje ocen**: Možnost dodelitve specifičnega repozitorija in skupine določenemu uporabniku z avtomatskim generiranjem unikatne povezave za reševanje.
 
 ### 5. `Builder.jsx` (Form Builder)
 Interaktivni urejevalnik strukture vprašalnika.
 * Omogoča urejanje kategorij in vprašanj (globina, sortiranje, opisi).
 * Podpira različne tipe vprašanj: `checkbox` (potrditveno polje), `yes_no_na` (DA/NE/neveljavno), `text` (tekstovni vnos), `numeric` (število) in `multiselect` (več izbir).
 * Možnost uvoza in izvoza celotne strukture v formatu JSON ter shranjevanje novih različic (npr. `1.0`, `2.0`) neposredno v bazo podatkov.
-* Gumb **"Izbriši celoten vprašalnik"** omogoča popoln izbris trenutne različice (če ni v uporabi s strani cevovodov).
+* Gumb **"Izbriši celoten vprašalnik"** omogoča popoln izbris trenutne različice.
 
 ### 6. `Rules.jsx` (Rules Manager)
 Urejevalnik pravil za izračun nivojev zrelosti.
@@ -90,12 +90,12 @@ Urejevalnik pravil za izračun nivojev zrelosti.
 
 ### 7. `AssessmentWrapper.jsx` & `Assessment4.jsx`
 Vmesnik za reševanje vprašalnika.
-* **Assessment4** ponuja napreden dvonivojski drevesni pogled: podkategorije ali vprašanja se prikažejo in postanejo zahtevane le, če je krovna kategorija označena kot prisotna (npr. podrobnosti o testiranju se odprejo šele, ko označete, da sploh izvajate teste).
+* **Assessment4** ponuja drevesni pogled: podkategorije ali vprašanja se prikažejo in postanejo zahtevane le, če je krovna kategorija označena kot prisotna (npr. podrobnosti o testiranju se odprejo šele, ko označete, da sploh izvajate teste).
 * Podpira sprotno shranjevanje osnutkov in končno oddajo ocene.
 
 ### 8. `ResultsPanel.jsx`
 Natančen prikaz rezultatov po oddaji ocene.
-* Prikaže dosežen nivo zrelosti (Gauge bar) in statistiko izpolnjenih kriterijev (npr. *manjka še 5 pogojev (1 od 6 izpolnjeno)*).
+* Prikaže dosežen nivo zrelosti in statistiko izpolnjenih kriterijev (npr. *manjka še 5 pogojev (1 od 6 izpolnjeno)*).
 * Izpiše natančen seznam pogojev, ki niso bili izpolnjeni za dosego višjega nivoja.
 * Prikaže prilagojena priporočila za izboljšavo (Improvement Suggestions), ki so bila konfigurirana v Rules Managerju.
 
@@ -121,32 +121,15 @@ API odjemalec (`src/api.js`) pred vsako zahtevo preveri dosegljivost backend sto
 Celoten izgled je definiran v datoteki [style.css](file:///c:/CICDcevovodi/src/style.css) z uporabo CSS spremenljivk, ki so dopolnjene z utility razredi ogrodja TailwindCSS v4. Aplikacija ponuja nemoteno preklapljanje med **temnim** in **svetlim** načinom.
 
 ### Dinamično preklapljanje tem (Light / Dark Mode):
-Tema se preklaplja preko gumba v glavi spletne strani (`Header.jsx`), ki doda ali odstrani `.light` razred na korenskem elementu dokumenta (`<html>`). Izbrana tema se shranjuje v `localStorage` uporabnika in se ob ponovnem obisku samodejno naloži preko inicializacijskega skripta v `index.html` (s čimer se prepreči vizualni utrip neoblikovane vsebine).
+Tema se preklaplja preko gumba v glavi spletne strani (`Header.jsx`), ki doda ali odstrani `.light` razred na korenskem elementu dokumenta (`<html>`). Izbrana tema se shranjuje v `localStorage` uporabnika in se ob ponovnem obisku samodejno naloži preko inicializacijskega skripta v `index.html` .
 
-### Ključne barvne spremenljivke:
-* **Temni način (Dark Mode - privzeto)**:
-  * Ozadje aplikacije (`--bg-main`): `#0d1117`
-  * Ozadje panelov (`--panel-bg`): `#161b22`
-  * Meje in robovi (`--panel-border`): `#30363d`
-  * Akcentna barva (modra): `#58a6ff` (`--accent-color`)
-* **Svetli način (Light Mode)**:
-  * Ozadje aplikacije (`--bg-main`): `#f6f8fa`
-  * Ozadje panelov (`--panel-bg`): `#ffffff`
-  * Meje in robovi (`--panel-border`): `#d0d7de`
-  * Akcentna barva (modra): `#0969da` (`--accent-color`)
-
-### Stekleni učinek in animacije:
-* **Stekleni učinek (Glassmorphism)**: Uporablja se na karticah in modalnih oknih z lastnostjo `backdrop-filter: blur(12px)` in delno prosojnimi obrobami (`--glass-border`).
-* **Animacije**:
-  * `fadeIn`: Nežna animacija prikaza z rahlim premikom navzgor (preprečuje grobe prehode med zasloni).
-  * `pulse`: Uporablja se za poudarjanje aktivnih stanj ali nalaganja.
 
 ---
 
 ## Zagon in Razvoj (How to Run)
 
 ### Lokalni zagon (brez Dockerja)
-Za lokalni zagon sprednjega dela potrebujete nameščen **Node.js** (priporočena različica 18 ali novejša).
+Za lokalni zagon sprednjega dela potrebujete nameščen **Node.js** (različica 18 ali novejša).
 
 1. Namestite odvisnosti:
    ```bash
@@ -159,7 +142,7 @@ Za lokalni zagon sprednjega dela potrebujete nameščen **Node.js** (priporočen
    Aplikacija bo dosegljiva na naslovu `http://localhost:5173`.
 
 ### Zagon prek Dockerja
-Sprednji del je konfiguriran za tek znotraj Docker okolja z uporabo dveh stopenj (razvojna vroča sinhronizacija in produkcijski Nginx strežnik).
+Sprednji del je konfiguriran za tek znotraj Docker okolja z uporabo dveh stopenj (razvojna sinhronizacija in produkcijski Nginx strežnik).
 
 Za zagon celotnega okolja (sprednji del, zaledni del in PostgreSQL baza) v korenski mapi zaženite:
 ```bash
