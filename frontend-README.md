@@ -4,7 +4,7 @@ Ta dokument vsebuje celovito tehnično dokumentacijo za sprednji del (frontend) 
 
 ---
 
-## 🛠️ Tehnološki Sklad (Tech Stack)
+## Tehnološki Sklad (Tech Stack)
 
 Aplikacija se opira na naslednje tehnologije:
 1. **React 19**: Deklarativna knjižnica za izgradnjo uporabniških vmesnikov.
@@ -16,7 +16,7 @@ Aplikacija se opira na naslednje tehnologije:
 
 ---
 
-## 📁 Pregled Mape `src` (Directory Structure)
+## Pregled Mape `src` (Directory Structure)
 
 ```text
 src/
@@ -45,7 +45,7 @@ src/
 
 ---
 
-## 🧩 Opis Ključnih Komponent (Component Details)
+## Opis Ključnih Komponent (Component Details)
 
 ### 1. `App.jsx`
 Glaven del aplikacije. Upravlja naslednje naloge:
@@ -101,7 +101,7 @@ Natančen prikaz rezultatov po oddaji ocene.
 
 ---
 
-## ⚙️ Integracija z API-jem in Offline način (API & Offline Flow)
+## Integracija z API-jem in Offline način (API & Offline Flow)
 
 API odjemalec (`src/api.js`) pred vsako zahtevo preveri dosegljivost backend storitve prek klica `/health` z omejenim časovnim oknom (1.5 sekunde):
 
@@ -116,7 +116,7 @@ API odjemalec (`src/api.js`) pred vsako zahtevo preveri dosegljivost backend sto
 
 ---
 
-## 🎨 Tematski in Stilski Sistem (Theming & Styling)
+## Tematski in Stilski Sistem (Theming & Styling)
 
 Celoten izgled je definiran v datoteki [style.css](file:///c:/CICDcevovodi/src/style.css) z uporabo CSS spremenljivk, ki so dopolnjene z utility razredi ogrodja TailwindCSS v4. Aplikacija ponuja nemoteno preklapljanje med **temnim** in **svetlim** načinom.
 
@@ -143,7 +143,7 @@ Tema se preklaplja preko gumba v glavi spletne strani (`Header.jsx`), ki doda al
 
 ---
 
-## 🚀 Zagon in Razvoj (How to Run)
+## Zagon in Razvoj (How to Run)
 
 ### Lokalni zagon (brez Dockerja)
 Za lokalni zagon sprednjega dela potrebujete nameščen **Node.js** (priporočena različica 18 ali novejša).
