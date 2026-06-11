@@ -324,6 +324,10 @@ Delujoča rešitev je dostopna tukaj:
 
 http://193.77.152.232:5173/
 
+User login:
+Uporabniško ime: Janez
+Geslo: password
+
 Če aplikacija še ni objavljena na spletu, jo lahko lokalno zaženete z Dockerjem in odprete na naslovu:
 
 ```text
