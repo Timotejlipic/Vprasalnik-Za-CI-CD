@@ -937,14 +937,16 @@ export default function App() {
           }}
           onClick={e => e.stopPropagation()}
         >
-          <div style={{
-            fontSize: '3rem',
-            marginBottom: '16px',
-            lineHeight: '1',
-            color: isError ? 'var(--danger-color, #ef5350)' : 'var(--accent-color, #58a6ff)'
-          }}>
-            {isError ? '⚠️' : '✨'}
-          </div>
+          {isError && (
+            <div style={{
+              fontSize: '3rem',
+              marginBottom: '16px',
+              lineHeight: '1',
+              color: 'var(--danger-color, #ef5350)'
+            }}>
+              ⚠️
+            </div>
+          )}
           <h3 style={{
             fontSize: '1.25rem',
             fontWeight: '600',

@@ -397,3 +397,8 @@ CREATE INDEX idx_pipeline_evaluations_pipeline
 
 CREATE INDEX idx_questionnaire_import_exports_config
 	ON questionnaire_import_exports(questionnaire_config_id);
+
+-- Vstavljanje privzetega administratorja (uporabniško ime: admin, geslo: password)
+INSERT INTO app_users (name, email, password_hash, role, is_active)
+VALUES ('admin', 'admin@admin.com', 'b3ce7002:47192bbf48e2e9932624aea9baa75fab865f882cd2d8ce87b1482c730437a569', 'admin', TRUE)
+ON CONFLICT (name) DO NOTHING;

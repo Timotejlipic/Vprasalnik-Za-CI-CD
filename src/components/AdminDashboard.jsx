@@ -11,12 +11,14 @@ function scoreColor(score) {
 function syncAssignmentsWithPipelines(assignments, pipelines, users) {
   let changed = false;
   pipelines.forEach(p => {
+    // repoId might have been cleared by api.getPipelines() after parsing, so use p.assessor and p.score if available, otherwise fall back to parsing repoId
     const parts = (p.repoId || '').split('|');
-    const assessor = parts[0] || '';
-    const score = parts[1] ? Number(parts[1]) : 0;
+    const assessor = p.assessor || parts[0] || '';
+    const score = p.score || (parts[1] ? Number(parts[1]) : 0);
 
     const userObj = users.find(u => 
       String(u.id) === String(p.user_id) || 
+      String(u.id) === String(p.userId) || 
       u.email?.toLowerCase() === assessor.toLowerCase() ||
       u.username?.toLowerCase() === assessor.toLowerCase() ||
       u.name?.toLowerCase() === assessor.toLowerCase() ||
@@ -507,13 +509,18 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
         if (asgn.status === 'completed') return asgn;
         
         // Match by repoLink and assessor name/email/ID (case-insensitive & accent/special char robust)
-        const matchedPipe = localPipelines.find(p => 
-          normalizeRepoUrl(p.repoLink) === normalizeRepoUrl(asgn.repoLink) && 
-          (normalizeName(p.assessor) === normalizeName(asgn.userName) || 
-           normalizeName(p.assessor) === normalizeName(asgn.userEmail) || 
-           normalizeName(p.assessor) === normalizeName(asgn.userEmail.split('@')[0]) ||
-           p.userId === asgn.userId)
-        );
+        const matchedPipe = localPipelines.find(p => {
+          const parts = (p.repoId || '').split('|');
+          const assessor = p.assessor || parts[0] || '';
+          return (
+            normalizeRepoUrl(p.repoLink) === normalizeRepoUrl(asgn.repoLink) && 
+            (normalizeName(assessor) === normalizeName(asgn.userName) || 
+             normalizeName(assessor) === normalizeName(asgn.userEmail) || 
+             normalizeName(assessor) === normalizeName(asgn.userEmail.split('@')[0]) ||
+             p.userId === asgn.userId ||
+             p.user_id === asgn.userId)
+          );
+        });
         
         if (matchedPipe) {
           return {
@@ -550,13 +557,18 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
     const enrichedAssignments = assignments.map(asgn => {
       if (asgn.status === 'completed') return asgn;
       
-      const matchedPipe = localPipelines.find(p => 
-        normalizeRepoUrl(p.repoLink) === normalizeRepoUrl(asgn.repoLink) && 
-        (normalizeName(p.assessor) === normalizeName(asgn.userName) || 
-         normalizeName(p.assessor) === normalizeName(asgn.userEmail) || 
-         normalizeName(p.assessor) === normalizeName(asgn.userEmail.split('@')[0]) ||
-         p.userId === asgn.userId)
-      );
+      const matchedPipe = localPipelines.find(p => {
+        const parts = (p.repoId || '').split('|');
+        const assessor = p.assessor || parts[0] || '';
+        return (
+          normalizeRepoUrl(p.repoLink) === normalizeRepoUrl(asgn.repoLink) && 
+          (normalizeName(assessor) === normalizeName(asgn.userName) || 
+           normalizeName(assessor) === normalizeName(asgn.userEmail) || 
+           normalizeName(assessor) === normalizeName(asgn.userEmail.split('@')[0]) ||
+           p.userId === asgn.userId ||
+           p.user_id === asgn.userId)
+        );
+      });
       
       if (matchedPipe) {
         return {
@@ -940,7 +952,7 @@ export default function AdminDashboard({ pipelines = [], switchView, questionnai
                           onClick={() => handleDeleteUser(u.id, u.name || u.email)}
                           title="Izbriši uporabnika"
                         >
-                          Briši
+                          Izbriši
                         </button>
                       </td>
                     </tr>

@@ -19,7 +19,7 @@ CREATE TABLE questionnaire_configs (
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-	CONSTRAINT uq_qustionnaire_version UNIQUE (version)
+	CONSTRAINT uq_questionnaire_version UNIQUE (version)
 );
 
 CREATE TRIGGER trg_questionnaire_configs_updated_at
@@ -58,13 +58,13 @@ CREATE TABLE questionnaire_items (
         CHECK (type IN ('checkbox', 'multiselect', 'numeric', 'text')),
 
     CONSTRAINT chk_questionnaire_item_depth
-        CHECK (depth BETWEEN 1 AND 3),
+        CHECK (depth BETWEEN 1 AND 4),
 
 	CONSTRAINT chk_parent_depth_logic
         CHECK (
             (parent_id IS NULL AND depth = 1)
             OR
-            (parent_id IS NOT NULL AND depth IN (2, 3))
+            (parent_id IS NOT NULL AND depth IN (2, 3, 4))
         )
 );
 
@@ -104,8 +104,8 @@ BEGIN
 		RAISE EXCEPTION 'Invalid depth. Child depth must be parent depth + 1';
 	END IF;
 
-	IF NEW.depth > 3 then
-		RAISE EXCEPTION 'questionnaire supports maximum deoth of 3';
+	IF NEW.depth > 4 then
+		RAISE EXCEPTION 'questionnaire supports maximum depth of 4';
 	END IF;
 
 	RETURN NEW;
@@ -291,7 +291,7 @@ CREATE TABLE questionnaire_import_exports (
 CREATE TABLE app_users (
     id BIGSERIAL PRIMARY KEY,
 
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
 
     password_hash TEXT NOT NULL,
@@ -304,13 +304,55 @@ CREATE TABLE app_users (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT chk_app_user_role
-        CHECK (role IN ('user', 'admin'))
+        CHECK (role IN ('user', 'admin', 'member'))
 );
 
 CREATE TRIGGER trg_app_users_updated_at
 BEFORE UPDATE ON app_users
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+-- Groups of users + GitHub repos to assess (server-side assignment tracking)
+CREATE TABLE user_groups (
+    id BIGSERIAL PRIMARY KEY,
+
+    name VARCHAR(255) NOT NULL,
+    user_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+    github_repos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    repo_configs JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- One (user, repo) task; flips to 'completed' when the user submits an assessment
+CREATE TABLE assignments (
+    id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    user_email VARCHAR(255) NOT NULL DEFAULT '',
+    user_name VARCHAR(255) NOT NULL DEFAULT '',
+
+    group_id VARCHAR(255) NOT NULL DEFAULT '',
+    group_name VARCHAR(255) NOT NULL DEFAULT '',
+
+    repo_link TEXT NOT NULL,
+    repo_name VARCHAR(255) NOT NULL DEFAULT '',
+
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    score INT,
+    level INT,
+    pipeline_id VARCHAR(255) NOT NULL DEFAULT '',
+    answers JSONB,
+
+    form_version VARCHAR(50) NOT NULL DEFAULT '1.0',
+    rules_version VARCHAR(50) NOT NULL DEFAULT '1.0',
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+CREATE INDEX idx_assignments_user ON assignments(user_id);
+CREATE INDEX idx_assignments_group ON assignments(group_id);
 
 ALTER TABLE pipelines
 ADD COLUMN created_by_user_id BIGINT NULL
@@ -355,3 +397,8 @@ CREATE INDEX idx_pipeline_evaluations_pipeline
 
 CREATE INDEX idx_questionnaire_import_exports_config
 	ON questionnaire_import_exports(questionnaire_config_id);
+
+-- Vstavljanje privzetega administratorja (uporabniško ime: admin, geslo: password)
+INSERT INTO app_users (name, email, password_hash, role, is_active)
+VALUES ('admin', 'admin@admin.com', 'b3ce7002:47192bbf48e2e9932624aea9baa75fab865f882cd2d8ce87b1482c730437a569', 'admin', TRUE)
+ON CONFLICT (name) DO NOTHING;

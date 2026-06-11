@@ -225,6 +225,24 @@ localhost:5432
 
 ---
 
+## Privzeti uporabniški računi (Default Users)
+
+Za prijavo v aplikacijo lahko uporabite naslednje privzete podatke:
+
+### 1. Administrator (Admin)
+Omogoča dostop do administratorskih funkcij (urejanje vprašalnikov, urejanje pravil zrelosti, upravljanje uporabnikov/skupin in dodeljevanje ocen).
+* **Uporabniško ime:** `admin` (ali `admin@admin.com`)
+* **Geslo:** `password`
+
+### 2. Navadni uporabniki
+* **Gost (Guest):** Na prijavni strani lahko kliknete na gumb **"Vstopi kot gost"** za nemoten pregled nadzorne plošče z omejenimi pravicami (samo za branje).
+* **Novi uporabniki:** Preko registracijskega obrazca si lahko ustvarite nov račun (dodeljena vam bo vloga `member`, ki omogoča reševanje dodeljenih vprašalnikov in pregled lastnih ocen).
+
+> [!NOTE]
+> Pri prvem zagonu baze se tabela uporabnikov samodejno inicializira s privzetim administratorjem preko SQL datoteke [vprasalnik.sql](file:///C:/CICDcevovodi/vprasalnik.sql). Če ste bazo že zagnali in tabela ne vsebuje tega uporabnika, lahko bazo ponastavite z ukazom `docker compose down -v` in nato ponovno zaženete `docker compose up --build`.
+
+---
+
 ### 3. Ustavitev aplikacije
 
 Če želite aplikacijo ustaviti, v terminalu pritisnite:
